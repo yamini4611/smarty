@@ -13,6 +13,22 @@ Deployment is intentionally **not** part of this pass — see
 [Running it locally](#running-it-locally) and
 [Deploying it later](#deploying-it-later) at the bottom.
 
+> ### Status: this web build is now the UI reference, not the product
+>
+> The shipping product is a **mobile app (Expo/React Native) with a
+> Python/FastAPI backend**, adding voice notes and voice retrieval, per
+> **[`docs/TECHNICAL-SPEC.md`](docs/TECHNICAL-SPEC.md)** — which merges
+> this brief with the *Cadence* technical specification and the client's
+> confirmed direction (a personal life dashboard rather than a calendar
+> assistant).
+>
+> What's in `app/` stays useful and stays maintained: it is the working
+> visual and interaction spec the mobile screens are built against, and
+> its capture parser is the stage-1 backend implementation. Sections 1–4
+> and 7 below (problem, user, product decisions, views) carry over intact.
+> Sections 3.7 and 8 describe this prototype's storage and limits
+> specifically, and are superseded by the spec for the product itself.
+
 ---
 
 ## 1. The problem
@@ -135,7 +151,7 @@ also be created empty ahead of time from the Projects tab. This keeps the
 common case (a bare task) frictionless while still giving multi-step
 efforts (a remodel, a job search) a home.
 
-### 3.7 Local-first storage, on purpose
+### 3.7 Local-first storage, on purpose *(prototype only — see the spec)*
 
 Everything is written to the browser's `localStorage` on the device it
 runs on. Nothing is transmitted anywhere. This is a direct answer to the
@@ -144,6 +160,11 @@ control" principle, and it's why **Export as JSON** and **Clear all data**
 exist as real, unconditional controls in Settings rather than aspirational
 copy. The tradeoff — no sync between devices in this version — is called
 out explicitly in [Limitations](#6-known-limitations--whats-next).
+
+In the product, this becomes a server-side store (Postgres) with the same
+user-facing guarantees kept as explicit, enforced commitments — configurable
+audio retention, whole-archive export, and delete that reaches object
+storage and the embedding index. See §14 of the technical spec.
 
 ## 4. What Ballast deliberately does *not* do (v0 non-goals)
 
@@ -281,27 +302,32 @@ see below for where this goes next.
 
 ## 8. Known limitations & what's next
 
-Honestly scoped, in priority order:
+Limitations of **this web prototype**, in priority order. Each is resolved
+by the product architecture in
+[`docs/TECHNICAL-SPEC.md`](docs/TECHNICAL-SPEC.md) — the section reference
+after each one says where.
 
 1. **No cross-device sync.** `localStorage` is per-browser, per-device.
-   The natural next step is a small sync backend (or a per-user database)
-   behind the same UI — the data model above was kept flat and JSON-
-   serializable specifically so that swap is additive, not a rewrite.
-2. **No real reminders/notifications.** "Reminders" today means *the item
-   shows up when you open the app*; there's no push notification or
-   background alert, because that requires a backend and a permissioned
-   client the brief's non-goals don't ask for yet.
-3. **Parser coverage is heuristic, not general.** See §6. A natural v1
-   upgrade is routing capture through an LLM for extraction while keeping
-   the exact same confirm/edit sheet as the trust boundary — the UI
-   doesn't need to change, only what fills it in.
-4. **Voice capture depends on browser support.** It uses the standard
-   `SpeechRecognition` Web API where available and degrades to a visible
-   "type instead" prompt where it isn't (e.g. Firefox, or a page without
-   microphone permission) — never a silent failure.
+   The data model here was kept flat and JSON-serializable specifically so
+   the swap to a server store is additive rather than a rewrite.
+   → *spec §3, §4*
+2. **No real reminders/notifications.** "Reminders" here means *the item
+   shows up when you open the app*; there's no push or background alert.
+   → *spec §13, and deliberately still deferred there until suggestion
+   quality earns an interruption*
+3. **Parser coverage is heuristic, not general.** See §6. The upgrade is
+   routing capture through an LLM for extraction while keeping the same
+   confirm/edit sheet as the trust boundary — the UI doesn't change, only
+   what fills it in. The heuristic parser stays on as the stage-1
+   implementation and the fallback path. → *spec §10, §16*
+4. **Voice is browser-dependent and capture-only.** It uses the Web
+   `SpeechRecognition` API where available and degrades to a visible "type
+   instead" prompt where it isn't — never a silent failure. Nothing here
+   records or retains a voice *note*, and there's no retrieval by voice.
+   → *spec §7, §8*
 5. **Six life areas are fixed**, not user-defined, matching the brief's
-   MVP list exactly. Custom areas are a reasonable v1 ask once the fixed
-   set proves the concept.
+   MVP list exactly. Custom areas are a reasonable ask once the fixed set
+   proves the concept. → *spec §9*
 
 ## 9. Running it locally
 
@@ -323,3 +349,8 @@ Because it's a static, dependency-free site, deployment — when it's
 time — is a non-event: point Vercel, Netlify, GitHub Pages, or any static
 host at the `app/` folder and it runs as-is. That step is deliberately not
 done in this pass, per direction to document the *why* first.
+
+For the mobile product, "deployment" means something different — Expo on a
+physical device without store submission, with the backend hosted
+separately. See [`docs/TECHNICAL-SPEC.md`](docs/TECHNICAL-SPEC.md) §3
+and §16.

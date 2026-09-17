@@ -1,0 +1,1019 @@
+<title>Ballast</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground: #fafaf9;
+    --paper: #ffffff;
+    --ink: #1a1d21;
+    --dim: #585e66;
+    --faint: #8b9099;
+    --accent: #1d3f63;
+    --accent-deep: #14293f;
+    --danger: #8c3a2b;
+    --success: #2f5d50;
+    --rule: #e4e4e0;
+    --rule-hard: #1a1d21;
+    --edge: #d8d8d3;
+    --tint: #edf1f6;
+    --serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+    --sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    color-scheme: light;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: #eeeeea; color: var(--ink);
+    font-family: var(--sans); font-size: 14px; -webkit-font-smoothing: antialiased;
+  }
+  * { box-sizing: border-box; }
+  button { font: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; text-align: left; }
+  button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  input, textarea { font: inherit; color: inherit; }
+
+  #phone {
+    height: 100%; max-width: 430px; margin: 0 auto; background: var(--ground);
+    display: flex; flex-direction: column; overflow: hidden; position: relative;
+  }
+  @media (min-width: 460px) {
+    body { padding-block: 20px; }
+    #phone { height: min(100%, 880px); border: 1px solid var(--edge); }
+  }
+
+  .head { flex: none; padding: 20px 24px 0; background: var(--ground); }
+  .head-rule {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    border-bottom: 1px solid var(--rule-hard); padding-bottom: 9px;
+  }
+  .wordmark { font-family: var(--serif); font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+  .scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 24px; }
+  .scroll.pad-bottom { padding-bottom: 28px; }
+
+  .label { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.12em; color: var(--faint); text-transform: uppercase; }
+  .label-sm { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; color: var(--faint); text-transform: uppercase; }
+  .sec { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 24px; }
+  .sec:first-child { margin-top: 22px; }
+  .sec + .hr { margin-top: 8px; }
+  .hr { height: 1px; background: var(--rule-hard); }
+  .row { display: flex; align-items: flex-start; gap: 13px; padding: 13px 0; border-bottom: 1px solid var(--rule); width: 100%; }
+  .row:active { background: #f2f2ee; }
+  .sq { flex: none; width: 6px; height: 6px; }
+  .title-line { font-size: 14.5px; font-weight: 500; line-height: 1.35; }
+  .meta { font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; color: var(--faint); margin-top: 5px; text-transform: uppercase; }
+  .when { flex: none; font-family: var(--mono); font-size: 10px; color: var(--dim); padding-top: 2px; font-variant-numeric: tabular-nums; }
+  .when.late { color: var(--danger); }
+  .display { font-family: var(--serif); font-weight: 500; letter-spacing: -0.018em; line-height: 1.22; }
+  .lede { font-size: 14px; line-height: 1.6; color: var(--dim); }
+
+  .btn { display: block; width: 100%; text-align: center; padding: 17px 20px; font-size: 14.5px; font-weight: 500; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:active { background: var(--accent-deep); }
+  .btn-outline { border: 1px solid var(--edge); background: var(--paper); }
+  .btn-quiet { color: var(--accent); font-size: 13.5px; padding: 13px 20px; }
+  .btn[disabled] { color: var(--faint); background: var(--paper); border: 1px solid var(--edge); cursor: default; }
+  .foot { flex: none; padding: 0 24px 28px; display: flex; flex-direction: column; gap: 10px; background: var(--ground); }
+
+  .capture {
+    flex: none; background: var(--paper); border-top: 1px solid var(--rule);
+    padding: 14px 24px; display: flex; align-items: center; gap: 13px; width: 100%;
+  }
+  .capture:active { background: #f7f7f4; }
+  .capture-text { flex: 1; font-size: 13.5px; color: var(--faint); }
+  .nav { flex: none; background: var(--paper); border-top: 1px solid var(--rule); display: grid; grid-template-columns: repeat(4, 1fr); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .nav button { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 4px 14px; }
+  .nav .label-sm { color: var(--faint); }
+  .nav button[aria-current="page"] { box-shadow: inset 0 2px 0 var(--accent); }
+  .nav button[aria-current="page"] .label-sm { color: var(--accent); }
+
+  .tile { flex: 1; }
+  .tile .n { font-family: var(--mono); font-size: 24px; font-weight: 500; line-height: 1; }
+  .stats { display: flex; gap: 28px; margin-top: 16px; }
+  .chip { flex: none; border: 1px solid var(--edge); background: var(--paper); padding: 7px 11px; display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; color: var(--dim); text-transform: uppercase; white-space: nowrap; }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chips { display: flex; gap: 6px; overflow-x: auto; padding: 13px 24px 0; flex: none; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .box { background: var(--tint); padding: 14px 16px; margin-top: 20px; }
+  .check { flex: none; width: 19px; height: 19px; border: 1px solid var(--edge); background: var(--paper); display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+  .check[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
+  .toggle { flex: none; width: 38px; height: 22px; border: 1px solid var(--edge); background: var(--paper); position: relative; }
+  .toggle i { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: #c9c9c3; transition: none; }
+  .toggle[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
+  .toggle[aria-checked="true"] i { left: auto; right: 2px; background: #fff; }
+  .field { display: flex; align-items: center; gap: 14px; padding: 15px 0; border-bottom: 1px solid var(--rule); width: 100%; }
+  .field-k { flex: none; width: 106px; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.08em; color: var(--faint); text-transform: uppercase; }
+  .field-v { flex: 1; font-size: 14.5px; font-weight: 500; }
+  .field-v.empty { color: var(--faint); font-weight: 400; }
+  .quote { font-family: var(--serif); font-size: 20px; font-style: italic; line-height: 1.45; letter-spacing: -0.008em; padding-left: 14px; border-left: 2px solid var(--ink); }
+  .done { text-decoration: line-through; color: var(--faint); }
+  .empty-note { font-size: 13px; color: var(--faint); line-height: 1.6; padding: 18px 0; }
+
+  .sheet-wrap { position: absolute; inset: 0; background: rgba(26,29,33,0.32); display: flex; align-items: flex-end; z-index: 20; }
+  .sheet { width: 100%; background: var(--ground); max-height: 92%; display: flex; flex-direction: column; border-top: 2px solid var(--ink); }
+  .toast { position: absolute; left: 24px; right: 24px; bottom: 96px; background: var(--ink); color: #fff; padding: 13px 16px; font-size: 13px; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .toast button { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.1em; color: #fff; text-transform: uppercase; }
+  .rec-dot { width: 7px; height: 7px; background: var(--danger); border-radius: 50%; }
+  @media (prefers-reduced-motion: no-preference) { .pulse { animation: p 1.1s ease-in-out infinite; } }
+  @keyframes p { 0%,100% { opacity: 1 } 50% { opacity: 0.25 } }
+  .type-in { width: 100%; border: none; background: transparent; font-family: var(--serif); font-size: 21px; font-weight: 500; letter-spacing: -0.01em; line-height: 1.3; resize: none; outline: none; }
+  .type-in::placeholder { color: var(--faint); }
+</style>
+
+<div id="phone"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var TODAY = new Date(2026, 8, 17);
+  var DAYS = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  var DAYS_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var MON = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  var MON_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  function d(y, m, day) { return new Date(y, m, day); }
+  function key(dt) { return dt.getFullYear() + '-' + (dt.getMonth() + 1) + '-' + dt.getDate(); }
+  function days(dt) { return Math.round((d(dt.getFullYear(), dt.getMonth(), dt.getDate()) - TODAY) / 86400000); }
+  function shortDate(dt) { return DAYS[dt.getDay()] + ' ' + dt.getDate(); }
+  function monDate(dt) { return dt.getDate() + ' ' + MON[dt.getMonth()]; }
+  function longDate(dt) { return DAYS_FULL[dt.getDay()] + ' ' + dt.getDate() + ' ' + MON_FULL[dt.getMonth()]; }
+  function relative(dt) {
+    var n = days(dt);
+    if (n < 0) return n === -1 ? 'YESTERDAY' : Math.abs(n) + ' DAYS AGO';
+    if (n === 0) return 'TODAY';
+    if (n === 1) return 'TOMORROW';
+    if (n < 7) return DAYS_FULL[dt.getDay()].toUpperCase();
+    return n + ' DAYS';
+  }
+  function money(n) {
+    return '£' + n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  var SEGMENTS = [
+    { id: 'home',    name: 'Home & Remodeling', color: '#7a5c3e' },
+    { id: 'wedding', name: 'Wedding & Events',  color: '#8c4a55' },
+    { id: 'finance', name: 'Finance',           color: '#2f5d50' },
+    { id: 'invest',  name: 'Investments',       color: '#3b5a78' },
+    { id: 'family',  name: 'Family',            color: '#6e4c6b' }
+  ];
+  var OFFERED = SEGMENTS.concat([
+    { id: 'travel',  name: 'Travel',            color: '#5d6b4a' },
+    { id: 'health',  name: 'Health',            color: '#7a4a3a' },
+    { id: 'work',    name: 'Work Goals',        color: '#4a4a5c' },
+    { id: 'docs',    name: 'Documents',         color: '#6b6355' }
+  ]);
+  function seg(id) {
+    for (var i = 0; i < OFFERED.length; i++) if (OFFERED[i].id === id) return OFFERED[i];
+    return { id: id, name: 'Unsorted', color: '#8b9099' };
+  }
+
+  var TYPES = ['Task','Deadline','Payment','Reminder','Event','Milestone','Note','Document'];
+
+  var uid = 0;
+  function item(o) { o.id = 'i' + (++uid); if (!o.done) o.done = false; return o; }
+
+  var S = {
+    screen: 'login',
+    tab: 'today',
+    openSeg: 'home',
+    filter: 'all',
+    sheet: null,
+    toast: null,
+    draft: null,
+    heard: null,
+    proposals: [],
+    chosen: ['home','wedding','finance','invest','family'],
+    settings: { brief: true, warn: true, confirm: true, calendar: true },
+    items: [
+      item({ title: 'Approve the contractor quote', type: 'Deadline', seg: 'home', date: d(2026,8,18), flag: true }),
+      item({ title: 'Wedding venue deposit', type: 'Payment', seg: 'wedding', date: d(2026,8,18), amount: 4000, flag: true }),
+      item({ title: 'Property tax deadline', type: 'Deadline', seg: 'finance', date: d(2026,8,29), flag: true }),
+      item({ title: 'Home inspection', type: 'Event', seg: 'home', date: d(2026,8,18), at: '14:30' }),
+      item({ title: 'Call the investment advisor', type: 'Task', seg: 'invest', date: d(2026,8,21) }),
+      item({ title: 'Review the wedding guest list', type: 'Task', seg: 'wedding', date: d(2026,8,22) }),
+      item({ title: 'Contractor visit', type: 'Event', seg: 'home', date: d(2026,8,22), at: '09:00' }),
+      item({ title: 'Review tile options', type: 'Task', seg: 'home', date: d(2026,8,20) }),
+      item({ title: 'Confirm the inspection date', type: 'Task', seg: 'home', date: d(2026,8,18) }),
+      item({ title: 'Pay the contractor advance', type: 'Payment', seg: 'home', date: d(2026,8,25), amount: 3500 }),
+      item({ title: 'Finalise the contractor quote', type: 'Milestone', seg: 'home', date: d(2026,8,18) }),
+      item({ title: 'Prefer matte finish flooring — not the gloss samples.', type: 'Note', seg: 'home', date: d(2026,8,15) }),
+      item({ title: 'Send the photographer the shot list', type: 'Task', seg: 'wedding', date: d(2026,8,30) }),
+      item({ title: 'Rebalance the ISA', type: 'Task', seg: 'invest', date: d(2026,9,2) }),
+      item({ title: 'Mum’s birthday', type: 'Event', seg: 'family', date: d(2026,9,4) }),
+      item({ title: 'Book the tasting menu', type: 'Task', seg: 'wedding', date: d(2026,8,26), done: true }),
+      item({ title: 'Signed the mortgage paperwork', type: 'Milestone', seg: 'finance', date: d(2026,8,10), done: true })
+    ]
+  };
+
+  var IC = {
+    home: '<path d="M4 20V9.6L12 3.5l8 6.1V20H4z"/><path d="M9.6 20v-6.2h4.8V20"/>',
+    timeline: '<path d="M4 6.5h16M4 12h16M4 17.5h16"/>',
+    grid: '<rect x="3.8" y="3.8" width="7" height="7"/><rect x="13.2" y="3.8" width="7" height="7"/><rect x="3.8" y="13.2" width="7" height="7"/><rect x="13.2" y="13.2" width="7" height="7"/>',
+    gear: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.6M12 18.4V21M3 12h2.6M18.4 12H21M5.6 5.6l1.9 1.9M16.5 16.5l1.9 1.9M18.4 5.6l-1.9 1.9M7.5 16.5l-1.9 1.9"/>',
+    mic: '<rect x="9.2" y="2.8" width="5.6" height="10.4" rx="2.8"/><path d="M5.8 11a6.2 6.2 0 0 0 12.4 0"/><path d="M12 17.2V21"/>',
+    chev: '<path d="M9 5l7 7-7 7"/>',
+    back: '<path d="M15 5l-7 7 7 7"/>',
+    tick: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    cross: '<path d="M6 6l12 12M18 6L6 18"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>'
+  };
+  function svg(name, size, color, w) {
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="' + color +
+      '" stroke-width="' + (w || 1.5) + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + IC[name] + '</svg>';
+  }
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function sq(color, size) { var n = size || 6; return '<span class="sq" style="width:' + n + 'px;height:' + n + 'px;background:' + color + '"></span>'; }
+
+  var root = document.getElementById('phone');
+
+  function go(screen, opts) {
+    S.screen = screen;
+    if (opts && opts.tab) S.tab = opts.tab;
+    if (opts && opts.seg) S.openSeg = opts.seg;
+    S.sheet = null;
+    render();
+    var sc = root.querySelector('.scroll');
+    if (sc) sc.scrollTop = 0;
+  }
+  function toast(msg) {
+    S.toast = msg;
+    render();
+    clearTimeout(toast.t);
+    toast.t = setTimeout(function () { S.toast = null; render(); }, 2600);
+  }
+
+  function header(left, right, opts) {
+    var pad = (opts && opts.wide) ? '20px 28px 0' : '20px 24px 0';
+    return '<div class="head" style="padding:' + pad + '"><div class="head-rule">' + left + (right || '') + '</div></div>';
+  }
+  function sectionHead(label, right) {
+    return '<div class="sec"><div class="label">' + label + '</div>' +
+      (right ? '<div class="label-sm">' + right + '</div>' : '') + '</div><div class="hr"></div>';
+  }
+  function navBar() {
+    var tabs = [
+      { id: 'today', icon: 'home', label: 'TODAY' },
+      { id: 'timeline', icon: 'timeline', label: 'TIMELINE' },
+      { id: 'segments', icon: 'grid', label: 'SEGMENTS' },
+      { id: 'settings', icon: 'gear', label: 'SETTINGS' }
+    ];
+    return '<nav class="nav">' + tabs.map(function (t) {
+      var on = S.tab === t.id;
+      var c = on ? '#1d3f63' : '#8b9099';
+      return '<button data-act="tab" data-v="' + t.id + '"' + (on ? ' aria-current="page"' : '') + '>' +
+        svg(t.icon, 17, c) + '<span class="label-sm"' + (on ? ' style="color:#1d3f63"' : '') + '>' + t.label + '</span></button>';
+    }).join('') + '</nav>';
+  }
+  function captureBar() {
+    return '<button class="capture" data-act="listen">' +
+      svg('mic', 19, '#1d3f63', 1.5) +
+      '<span class="capture-text">Say it, or tap to type</span>' +
+      '<span class="label-sm" style="color:#1d3f63">ADD</span></button>';
+  }
+
+  function itemRow(it, opts) {
+    var s = seg(it.seg);
+    var late = it.type === 'Payment' || it.type === 'Deadline';
+    var when = opts && opts.abs ? monDate(it.date).toUpperCase() : relative(it.date);
+    var meta = [it.type.toUpperCase(), s.name.toUpperCase()];
+    if (it.amount) meta.push(money(it.amount).toUpperCase());
+    if (it.at) meta.push(it.at);
+    return '<button class="row" data-act="open-item" data-v="' + it.id + '">' +
+      sq(s.color) +
+      '<span style="flex:1;min-width:0">' +
+        '<span class="title-line' + (it.done ? ' done' : '') + '" style="display:block">' + esc(it.title) + '</span>' +
+        '<span class="meta" style="display:block">' + meta.join(' · ') + '</span>' +
+      '</span>' +
+      '<span class="when' + (late && !it.done ? ' late' : '') + '">' + when + '</span>' +
+    '</button>';
+  }
+
+  var SCREENS = {};
+
+  SCREENS.login = function () {
+    return '<div class="head" style="padding:20px 28px 0"><div class="head-rule">' +
+        '<span class="wordmark">Ballast</span>' +
+        '<span class="label">A PERSONAL COMMAND CENTRE</span>' +
+      '</div></div>' +
+      '<div class="scroll" style="padding:0 28px;display:flex;flex-direction:column">' +
+        '<h1 class="display" style="font-size:31px;margin:38px 0 0">Everything you are carrying, in one place.</h1>' +
+        '<p class="lede" style="margin:16px 0 0">Not a calendar. The house, the wedding, the money, the family — the things that never make it into a meeting slot, held where you can see them.</p>' +
+        sectionHead('WHAT IT HOLDS') +
+        SEGMENTS.map(function (s) {
+          return '<div style="display:flex;align-items:center;gap:11px;padding:13px 0;border-bottom:1px solid #e4e4e0">' +
+            sq(s.color) + '<span style="font-size:14px">' + s.name + '</span></div>';
+        }).join('') +
+        '<p style="font-size:12.5px;line-height:1.6;color:#8b9099;margin:20px 0 0">You choose your own. These are just where most people start.</p>' +
+      '</div>' +
+      '<div class="foot">' +
+        '<button class="btn btn-primary" data-act="go" data-v="calendar">Continue with Google</button>' +
+        '<button class="btn btn-outline" data-act="go" data-v="calendar">Continue with Apple</button>' +
+        '<button class="btn btn-quiet" data-act="go" data-v="segsetup">Use email instead</button>' +
+      '</div>';
+  };
+
+  SCREENS.calendar = function () {
+    function line(icon, color, text, dim) {
+      return '<div style="display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:1px solid #e4e4e0">' +
+        '<span style="flex:none;margin-top:2px">' + svg(icon, 16, color, 1.6) + '</span>' +
+        '<span style="flex:1;font-size:13.5px;line-height:1.5' + (dim ? ';color:#585e66' : '') + '">' + text + '</span></div>';
+    }
+    return header('<span class="wordmark">Ballast</span>', '<span class="label">STEP 1 OF 2</span>', { wide: true }) +
+      '<div class="scroll" style="padding:0 28px">' +
+        '<h1 class="display" style="font-size:29px;margin:30px 0 0">Connect your calendar</h1>' +
+        '<p class="lede" style="margin:14px 0 0">Your calendar is one input, not the whole picture. Reading it lets Ballast put what is already scheduled next to what is not — the quotes, payments and decisions that never get a meeting slot.</p>' +
+        sectionHead('WHAT BALLAST READS') +
+        line('tick', '#2f5d50', 'Event titles, dates and times for the next 12 months') +
+        line('tick', '#2f5d50', 'New events as they are added, so nothing goes stale') +
+        line('cross', '#8c3a2b', 'Nothing is written to your calendar without asking you first', true) +
+        line('cross', '#8c3a2b', 'No contacts, no email, no files', true) +
+        '<p style="font-size:12.5px;line-height:1.6;color:#8b9099;margin:20px 0 28px">You will choose which events actually matter. A dentist appointment can stay just an appointment; a contractor visit can become part of Home &amp; Remodeling.</p>' +
+      '</div>' +
+      '<div class="foot">' +
+        '<button class="btn btn-primary" data-act="connect">Connect Google Calendar</button>' +
+        '<button class="btn btn-outline" style="color:#585e66" disabled>Apple Calendar — coming later</button>' +
+        '<button class="btn btn-quiet" data-act="skip-cal">Skip for now</button>' +
+      '</div>';
+  };
+
+  SCREENS.segsetup = function () {
+    var n = S.chosen.length;
+    return header('<span class="wordmark">Ballast</span>', '<span class="label">STEP 2 OF 2</span>', { wide: true }) +
+      '<div class="scroll" style="padding:0 28px">' +
+        '<h1 class="display" style="font-size:29px;margin:30px 0 0">What are you carrying?</h1>' +
+        '<p class="lede" style="margin:14px 0 0">Pick the parts of your life that need keeping on top of. You can add or drop these later — nothing here is permanent.</p>' +
+        sectionHead('YOUR SEGMENTS', n + ' CHOSEN') +
+        OFFERED.map(function (s) {
+          var on = S.chosen.indexOf(s.id) > -1;
+          return '<button class="field" data-act="toggle-seg" data-v="' + s.id + '" role="checkbox" aria-checked="' + on + '">' +
+            '<span class="check" aria-hidden="true"' + (on ? ' style="background:#1d3f63;border-color:#1d3f63"' : '') + '>' +
+              (on ? svg('tick', 12, '#ffffff', 2.4) : '') + '</span>' +
+            sq(s.color) +
+            '<span class="field-v" style="margin-left:-4px">' + s.name + '</span></button>';
+        }).join('') +
+        '<p style="font-size:12.5px;line-height:1.6;color:#8b9099;margin:20px 0 28px">Each segment gets its own page — open items, dates, payments and the notes you leave yourself.</p>' +
+      '</div>' +
+      '<div class="foot">' +
+        '<button class="btn btn-primary" data-act="finish-setup"' + (n ? '' : ' disabled') + '>' +
+          (n ? 'Start with ' + n + ' segment' + (n === 1 ? '' : 's') : 'Choose at least one') + '</button>' +
+      '</div>';
+  };
+
+  function live() { return S.items.filter(function (i) { return !i.done && i.type !== 'Note'; }); }
+  function attention() {
+    return live().filter(function (i) { var n = days(i.date); return n >= 0 && (i.flag || (n <= 2 && (i.type === 'Payment' || i.type === 'Deadline'))); })
+      .sort(function (a, b) { return a.date - b.date; });
+  }
+  function upcoming() {
+    var att = attention();
+    return live().filter(function (i) { var n = days(i.date); return n >= 0 && n <= 7 && att.indexOf(i) < 0; })
+      .sort(function (a, b) { return a.date - b.date; });
+  }
+  var WORDS = ['no','one','two','three','four','five','six','seven','eight','nine'];
+  function count(n, sing, plur) { return (n < 10 ? WORDS[n] : n) + ' ' + (n === 1 ? sing : plur); }
+  function brief() {
+    var att = attention();
+    if (!att.length) return 'Nothing is pressing. The week ahead is yours.';
+    var pay = att.filter(function (i) { return i.type === 'Payment'; }).length;
+    var rest = att.length - pay;
+    var parts = [];
+    if (pay) parts.push(titleCase(count(pay, 'payment', 'payments')));
+    if (rest) parts.push(count(rest, 'decision', 'decisions'));
+    var head = parts.join(' and ');
+    if (!pay) head = head.charAt(0).toUpperCase() + head.slice(1);
+    return head + ' need' + (att.length === 1 ? 's' : '') + ' you before the weekend.';
+  }
+
+  SCREENS.today = function () {
+    var att = attention(), up = upcoming();
+    var body =
+      '<h1 class="display" style="font-size:26px;margin:24px 0 0">' + brief() + '</h1>' +
+      sectionHead('NEEDS ATTENTION', att.length ? String(att.length) : '') +
+      (att.length ? att.map(function (i) { return itemRow(i); }).join('')
+                  : '<p class="empty-note">Nothing is overdue and nothing is due in the next two days.</p>') +
+      sectionHead('THE WEEK AHEAD', up.length ? String(up.length) : '') +
+      (up.length ? up.map(function (i) { return itemRow(i); }).join('')
+                 : '<p class="empty-note">Nothing else scheduled inside seven days.</p>') +
+      sectionHead('SEGMENTS') +
+      S.chosen.map(function (id) {
+        var s = seg(id);
+        var open = live().filter(function (i) { return i.seg === id; });
+        var soon = open.filter(function (i) { return days(i.date) <= 7; }).length;
+        return '<button class="row" data-act="open-seg" data-v="' + id + '">' + sq(s.color) +
+          '<span style="flex:1;min-width:0"><span class="title-line" style="display:block">' + s.name + '</span>' +
+          '<span class="meta" style="display:block">' + open.length + ' OPEN' + (soon ? ' · ' + soon + ' THIS WEEK' : '') + '</span></span>' +
+          '<span style="flex:none;padding-top:4px">' + svg('chev', 14, '#8b9099', 1.7) + '</span></button>';
+      }).join('') +
+      '<div style="height:20px"></div>';
+    return header(
+        '<span><span class="label" style="display:block">' + DAYS_FULL[TODAY.getDay()].toUpperCase() + ' ' + TODAY.getDate() + ' ' + MON_FULL[TODAY.getMonth()].toUpperCase() + ' ' + TODAY.getFullYear() + '</span>' +
+        '<span class="wordmark" style="display:block;margin-top:5px">Good morning, Rohan</span></span>',
+        '<span class="label">BALLAST</span>') +
+      '<div class="scroll">' + body + '</div>' + captureBar() + navBar();
+  };
+
+  SCREENS.timeline = function () {
+    var list = live().filter(function (i) { return days(i.date) >= 0; });
+    if (S.filter !== 'all') list = list.filter(function (i) { return i.seg === S.filter; });
+    list.sort(function (a, b) { return a.date - b.date; });
+    var week = list.filter(function (i) { return days(i.date) <= 7; });
+    var later = list.filter(function (i) { return days(i.date) > 7; });
+
+    function group(label, arr) {
+      if (!arr.length) return sectionHead(label, '0') + '<p class="empty-note">Nothing here.</p>';
+      return sectionHead(label, String(arr.length)) + arr.map(function (i) {
+        var s = seg(i.seg);
+        var late = i.type === 'Payment' || i.type === 'Deadline';
+        return '<button class="row" data-act="open-item" data-v="' + i.id + '">' +
+          '<span class="when' + (late ? ' late' : '') + '" style="width:44px;padding-top:1px">' + shortDate(i.date) + '</span>' +
+          '<span style="flex:1;min-width:0"><span class="title-line" style="display:block">' + esc(i.title) + '</span>' +
+          '<span class="meta" style="display:block">' + i.type.toUpperCase() + (i.amount ? ' · ' + money(i.amount) : '') + (i.at ? ' · ' + i.at : '') + '</span></span>' +
+          sq(s.color) + '</button>';
+      }).join('');
+    }
+    var chips = [{ id: 'all', name: 'ALL' }].concat(S.chosen.map(function (id) {
+      return { id: id, name: seg(id).name.split(' ')[0].toUpperCase() };
+    }));
+    return header('<span class="wordmark">Timeline</span>', '<span class="label">' + list.length + ' AHEAD</span>') +
+      '<div class="chips">' + chips.map(function (c) {
+        return '<button class="chip" data-act="filter" data-v="' + c.id + '" aria-pressed="' + (S.filter === c.id) + '">' + c.name + '</button>';
+      }).join('') + '</div>' +
+      '<div class="scroll pad-bottom">' + group('THIS WEEK', week) + group('LATER', later) + '</div>' +
+      captureBar() + navBar();
+  };
+
+  SCREENS.segments = function () {
+    return header('<span class="wordmark">Segments</span>', '<span class="label">' + S.chosen.length + ' ACTIVE</span>') +
+      '<div class="scroll pad-bottom">' +
+        sectionHead('YOUR LIFE, DIVIDED') +
+        S.chosen.map(function (id) {
+          var s = seg(id);
+          var all = S.items.filter(function (i) { return i.seg === id; });
+          var open = all.filter(function (i) { return !i.done && i.type !== 'Note'; });
+          var doneN = all.filter(function (i) { return i.done; }).length;
+          var next = open.slice().sort(function (a, b) { return a.date - b.date; })[0];
+          return '<button class="row" data-act="open-seg" data-v="' + id + '" style="padding:16px 0">' + sq(s.color) +
+            '<span style="flex:1;min-width:0">' +
+              '<span class="title-line" style="display:block;font-size:15.5px">' + s.name + '</span>' +
+              '<span class="meta" style="display:block">' + open.length + ' OPEN · ' + doneN + ' DONE</span>' +
+              (next ? '<span style="display:block;font-size:12.5px;color:#585e66;margin-top:7px">Next: ' + esc(next.title) + ' · ' + relative(next.date).toLowerCase() + '</span>' : '') +
+            '</span>' +
+            '<span style="flex:none;padding-top:6px">' + svg('chev', 14, '#8b9099', 1.7) + '</span></button>';
+        }).join('') +
+        '<button class="btn btn-outline" data-act="go" data-v="segsetup" style="margin-top:22px">Add or remove segments</button>' +
+      '</div>' + captureBar() + navBar();
+  };
+
+  SCREENS.segdetail = function () {
+    var s = seg(S.openSeg);
+    var all = S.items.filter(function (i) { return i.seg === s.id; });
+    var open = all.filter(function (i) { return !i.done && i.type !== 'Note'; }).sort(function (a, b) { return a.date - b.date; });
+    var soon = open.filter(function (i) { return days(i.date) <= 7; }).length;
+    var doneN = all.filter(function (i) { return i.done; }).length;
+    var notes = all.filter(function (i) { return i.type === 'Note'; });
+    var events = open.filter(function (i) { return i.type === 'Event'; });
+    var work = open.filter(function (i) { return i.type !== 'Event'; });
+
+    function stat(n, label) {
+      return '<span class="tile"><span class="n" style="display:block">' + n + '</span>' +
+        '<span class="label-sm" style="display:block;margin-top:6px">' + label + '</span></span>';
+    }
+    return header(
+        '<button data-act="back" style="display:flex;align-items:center;gap:8px">' + svg('back', 15, '#8b9099', 1.7) +
+        '<span class="label">SEGMENTS</span></button>',
+        '<span style="display:flex;align-items:center;gap:7px">' + sq(s.color) + '<span class="label">' + s.name.toUpperCase() + '</span></span>') +
+      '<div class="scroll pad-bottom">' +
+        '<h1 class="display" style="font-size:27px;margin:24px 0 0">' + s.name + '</h1>' +
+        '<div class="stats">' + stat(open.length, 'OPEN') + stat(soon, 'DUE SOON') + stat(doneN, 'DONE') + '</div>' +
+        (work.length ? sectionHead('OPEN ITEMS') + work.map(function (i) {
+          return '<div class="row">' +
+            '<button class="check" data-act="check" data-v="' + i.id + '" role="checkbox" aria-checked="false" aria-label="Mark done"></button>' +
+            '<button style="flex:1;min-width:0" data-act="open-item" data-v="' + i.id + '">' +
+              '<span class="title-line" style="display:block">' + esc(i.title) + '</span>' +
+              '<span class="meta" style="display:block">' + i.type.toUpperCase() + (i.amount ? ' · ' + money(i.amount) : '') + '</span></button>' +
+            '<span class="when' + (i.type === 'Payment' || i.type === 'Deadline' ? ' late' : '') + '">' + shortDate(i.date) + '</span></div>';
+        }).join('') : '') +
+        (events.length ? sectionHead('ON THE CALENDAR') + events.map(function (i) {
+          return '<div class="row"><span class="when" style="width:44px">' + shortDate(i.date) + '</span>' +
+            '<span style="flex:1"><span class="title-line" style="display:block">' + esc(i.title) + '</span>' +
+            '<span class="meta" style="display:block">FROM GOOGLE CALENDAR</span></span>' +
+            '<span class="when">' + (i.at || '') + '</span></div>';
+        }).join('') : '') +
+        (notes.length ? sectionHead('NOTES TO YOURSELF') + notes.map(function (i) {
+          return '<div style="padding:15px 0;border-bottom:1px solid #e4e4e0">' +
+            '<p class="quote" style="font-size:16px;margin:0">“' + esc(i.title) + '”</p>' +
+            '<p class="meta" style="margin:9px 0 0;padding-left:16px">SPOKEN ' + monDate(i.date).toUpperCase() + '</p></div>';
+        }).join('') : '') +
+        '<button class="btn btn-outline" data-act="add-to" data-v="' + s.id + '" style="margin-top:22px">Add to ' + s.name + '</button>' +
+      '</div>' + captureBar() + navBar();
+  };
+
+  SCREENS.settings = function () {
+    function row(title, sub, ctrl) {
+      return '<div class="row" style="align-items:center">' +
+        '<span style="flex:1"><span class="title-line" style="display:block">' + title + '</span>' +
+        (sub ? '<span style="display:block;font-size:12px;color:#8b9099;margin-top:3px">' + sub + '</span>' : '') + '</span>' + ctrl + '</div>';
+    }
+    function toggle(k) {
+      return '<button class="toggle" data-act="set" data-v="' + k + '" role="switch" aria-checked="' + S.settings[k] + '" aria-label="Toggle"><i></i></button>';
+    }
+    var chev = '<span style="flex:none">' + svg('chev', 14, '#8b9099', 1.7) + '</span>';
+    return header('<span class="wordmark">Settings</span>', '<span class="label">R. MEHTA</span>') +
+      '<div class="scroll pad-bottom">' +
+        sectionHead('CALENDARS') +
+        row('Google Calendar', S.settings.calendar ? 'r.mehta@gmail.com · SYNCED 4 MIN AGO' : 'Not connected',
+            S.settings.calendar ? sq('#2f5d50') : '<button class="chip" data-act="set" data-v="calendar">CONNECT</button>') +
+        row('Apple Calendar', 'NOT YET SUPPORTED', '') +
+        sectionHead('LIFE SEGMENTS') +
+        '<button class="row" data-act="go" data-v="segsetup" style="align-items:center">' +
+          '<span style="flex:1;display:flex;align-items:center;gap:7px">' +
+            S.chosen.map(function (id) { return sq(seg(id).color); }).join('') +
+            '<span class="title-line" style="margin-left:6px">' + S.chosen.length + ' active</span></span>' + chev + '</button>' +
+        sectionHead('REMINDERS') +
+        row('Morning brief', 'One summary at 07:30. Nothing else during the day.', toggle('brief')) +
+        row('Payments and deadlines', 'Warn me 2 days ahead', toggle('warn')) +
+        sectionHead('ASSISTANT') +
+        row('Always confirm before saving', 'Nothing is created from your words without a yes', toggle('confirm')) +
+        row('Keep recordings', '30 days, then only the written version is kept', chev) +
+        sectionHead('YOUR DATA') +
+        '<div class="row" style="align-items:center"><span class="title-line" style="flex:1">Download everything</span>' + chev + '</div>' +
+        '<div class="row" style="align-items:center;border-bottom:none"><span class="title-line" style="flex:1;color:#8c3a2b">Delete my account</span></div>' +
+        '<button class="btn btn-quiet" data-act="reset" style="margin-top:14px;text-align:center">Reset this demo</button>' +
+      '</div>' + navBar();
+  };
+
+  function newDraft(o) {
+    var dr = { title: '', type: 'Task', seg: S.chosen[0] || 'home', date: null, amount: null, remind: true, calendar: false, steps: false };
+    for (var k in (o || {})) dr[k] = o[k];
+    return dr;
+  }
+
+  SCREENS.add = function () {
+    var dr = S.draft || (S.draft = newDraft());
+    var s = seg(dr.seg);
+    var isPay = dr.type === 'Payment';
+    function field(k, label, value, act, empty) {
+      return '<button class="field" data-act="' + act + '">' +
+        '<span class="field-k">' + label + '</span>' +
+        '<span class="field-v' + (empty ? ' empty' : '') + '">' + value + '</span>' +
+        '<span style="flex:none">' + svg('chev', 13, '#8b9099', 1.7) + '</span></button>';
+    }
+    function tog(k, label, on) {
+      return '<div class="field"><span class="field-k">' + label + '</span>' +
+        '<span class="field-v" style="color:' + (on ? '#1a1d21' : '#8b9099') + '">' + (on ? 'On' : 'Off') + '</span>' +
+        '<button class="toggle" data-act="draft-tog" data-v="' + k + '" role="switch" aria-checked="' + on + '" aria-label="' + label + '"><i></i></button></div>';
+    }
+    return header('<button data-act="cancel"><span class="label">CANCEL</span></button>',
+        '<span class="wordmark" style="font-size:16px">New item</span>' +
+        '<span class="label">' + dr.type.toUpperCase() + '</span>') +
+      '<div class="chips">' + TYPES.map(function (t) {
+        return '<button class="chip" data-act="draft-type" data-v="' + t + '" aria-pressed="' + (dr.type === t) + '">' + t.toUpperCase() + '</button>';
+      }).join('') + '</div>' +
+      '<div class="scroll pad-bottom">' +
+        '<textarea id="draft-title" class="type-in" rows="2" placeholder="What is it?" style="margin-top:20px">' + esc(dr.title) + '</textarea>' +
+        '<div class="hr" style="background:#e4e4e0;margin-bottom:4px"></div>' +
+        field('seg', 'SEGMENT', '<span style="display:inline-flex;align-items:center;gap:8px">' + sq(s.color) + s.name + '</span>', 'pick-seg') +
+        field('date', dr.type === 'Payment' || dr.type === 'Deadline' ? 'DUE' : 'WHEN',
+              dr.date ? longDate(dr.date) : 'No date', 'pick-date', !dr.date) +
+        (isPay ? '<div class="field"><span class="field-k">AMOUNT</span>' +
+          '<input id="draft-amount" class="field-v" inputmode="decimal" placeholder="0.00" value="' + (dr.amount || '') + '" ' +
+          'style="border:none;background:transparent;outline:none;font-family:var(--mono);width:100%" aria-label="Amount in pounds"></div>' : '') +
+        tog('remind', 'REMIND ME', dr.remind) +
+        tog('calendar', 'ADD TO CALENDAR', dr.calendar) +
+        tog('steps', 'SUGGEST STEPS', dr.steps) +
+        '<p style="font-size:12.5px;line-height:1.6;color:#8b9099;margin:20px 0 0">Or hold the microphone on any screen and just say it — Ballast will fill this in and show you before saving.</p>' +
+      '</div>' +
+      '<div class="foot" style="padding-top:14px">' +
+        '<button class="btn btn-primary" data-act="save-draft">Save to ' + s.name + '</button>' +
+      '</div>';
+  };
+
+  var SEG_WORDS = {
+    home: ['contractor','builder','house','home','kitchen','bathroom','tile','floor','flooring','plumber','electrician','renovation','remodel','remodelling','inspection','roof','garden','extension','quote','skirting'],
+    wedding: ['wedding','photographer','venue','caterer','catering','guest','bridesmaid','florist','ceremony','reception','honeymoon','tasting','cake','registrar','suit','dress'],
+    finance: ['tax','mortgage','bill','insurance','bank','loan','accountant','invoice','pension','council','utilities','refinance'],
+    invest: ['invest','investment','isa','stock','shares','portfolio','fund','advisor','adviser','dividend','pension pot','broker'],
+    family: ['mum','mom','dad','family','birthday','anniversary','school','kids','children','sister','brother','parents'],
+    travel: ['flight','hotel','trip','passport','visa','travel','airport','booking'],
+    health: ['doctor','dentist','gp','prescription','gym','physio','optician','vaccination'],
+    work: ['client','presentation','report','promotion','appraisal','standup','colleague','manager'],
+    docs: ['document','certificate','deed','contract','warranty','policy','licence','paperwork']
+  };
+  var TYPE_WORDS = [
+    ['Payment', ['pay ','payment','deposit','invoice','transfer','settle','bill','owe','£']],
+    ['Deadline', ['deadline','due by','expires','cut-off','cutoff','last day','must be in','submit by']],
+    ['Event', ['meeting','visit','appointment','dinner','lunch','viewing','ceremony','call with']],
+    ['Reminder', ['remind me','don\'t forget','dont forget']],
+    ['Note', ['remember that','note that','i prefer','prefer ','for the record']]
+  ];
+  var WD = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+
+  function addDays(n) { var x = new Date(TODAY); x.setDate(x.getDate() + n); return x; }
+  function nextWeekday(name, skipWeek) {
+    var target = WD.indexOf(name), delta = (target - TODAY.getDay() + 7) % 7;
+    if (delta === 0) delta = 7;
+    if (skipWeek && delta < 7) delta += 7;
+    return addDays(delta);
+  }
+
+  function parseDate(t) {
+    var m;
+    if (/\btomorrow\b/.test(t)) return { date: addDays(1) };
+    if (/\b(today|tonight)\b/.test(t)) return { date: addDays(0) };
+    if ((m = t.match(/\bin (\d+) days?\b/))) return { date: addDays(parseInt(m[1], 10)) };
+    if ((m = t.match(/\bnext (sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/))) return { date: nextWeekday(m[1], true) };
+    if ((m = t.match(/\b(this |on |by |)(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/))) return { date: nextWeekday(m[2], false) };
+    if ((m = t.match(/\b(?:on |by |the )(\d{1,2})(?:st|nd|rd|th)\b/))) {
+      var day = parseInt(m[1], 10), x = new Date(TODAY.getFullYear(), TODAY.getMonth(), day);
+      if (x < TODAY) x = new Date(TODAY.getFullYear(), TODAY.getMonth() + 1, day);
+      return { date: x };
+    }
+    if (/\bnext week\b/.test(t)) return { date: addDays(7), guess: true };
+    if (/\b(this|end of the|end of this) month\b/.test(t)) return { date: new Date(TODAY.getFullYear(), TODAY.getMonth() + 1, 0), guess: true };
+    if (/\bnext month\b/.test(t)) return { date: new Date(TODAY.getFullYear(), TODAY.getMonth() + 2, 0), guess: true };
+    if (/\bthis week\b/.test(t)) return { date: nextWeekday('friday', false), guess: true };
+    return {};
+  }
+
+  function titleCase(s) {
+    s = s.trim().replace(/\s+/g, ' ');
+    if (!s) return s;
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  function parseClause(raw) {
+    var t = raw.toLowerCase();
+    var type = 'Task';
+    for (var i = 0; i < TYPE_WORDS.length; i++) {
+      for (var j = 0; j < TYPE_WORDS[i][1].length; j++) {
+        if (t.indexOf(TYPE_WORDS[i][1][j]) > -1) { type = TYPE_WORDS[i][0]; i = TYPE_WORDS.length; break; }
+      }
+    }
+    if (/^(check|find out|see|ask|confirm|look up|chase|work out)\b/.test(t)) type = 'Task';
+    var segId = null, best = 0;
+    for (var id in SEG_WORDS) {
+      if (S.chosen.indexOf(id) < 0) continue;
+      var hits = 0;
+      SEG_WORDS[id].forEach(function (w) { if (t.indexOf(w) > -1) hits++; });
+      if (hits > best) { best = hits; segId = id; }
+    }
+    var dt = parseDate(t);
+    var amount = null, am = raw.match(/£\s?([\d,]+(?:\.\d{1,2})?)/) || raw.match(/([\d,]+(?:\.\d{1,2})?)\s*(?:pounds|quid|gbp)/i);
+    if (am) amount = parseFloat(am[1].replace(/,/g, ''));
+
+    var title = raw.trim()
+      .replace(/^(i need to|i have to|i must|i should|please|can you|remind me to|remember to|don'?t forget to)\s+/i, '')
+      .replace(/\b(next |this |on |by )?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi, '')
+      .replace(/\b(tomorrow|today|tonight|next week|this week|next month|this month|end of the month)\b/gi, '')
+      .replace(/\bin \d+ days?\b/gi, '')
+      .replace(/£\s?[\d,]+(?:\.\d{1,2})?/g, '')
+      .replace(/\b[\d,]+(?:\.\d{1,2})?\s*(?:pounds|quid|gbp)\b/gi, '')
+      .replace(/\b(?:on |by )?the \d{1,2}(?:st|nd|rd|th)\b/gi, '')
+      .replace(/\s{2,}/g, ' ').replace(/\s+([,.])/g, '$1').replace(/[,\s]+$/, '').trim();
+
+    return {
+      id: 'p' + (++uid), title: titleCase(title) || titleCase(raw), type: type,
+      seg: segId || S.chosen[0] || 'home', segGuess: !segId,
+      date: dt.date || null, dateGuess: !!dt.guess, amount: amount
+    };
+  }
+
+  function parseAll(text) {
+    var clauses = text.split(/\s+and (?:then )?(?=\w)|[;.]\s+|,\s+(?:and\s+)?(?:also|then)\s+/i)
+      .map(function (c) { return c.trim(); }).filter(function (c) { return c.length > 3; });
+    if (!clauses.length) clauses = [text];
+    return clauses.slice(0, 4).map(parseClause);
+  }
+
+  function isQuestion(t) {
+    return /\?$/.test(t.trim()) || /^(what|when|how much|how many|which|where|show me|do i|is there|are there|who)\b/i.test(t.trim());
+  }
+
+  function answer(q) {
+    var t = q.toLowerCase(), list = live(), title, lead;
+    if (/pay|payment|deposit|owe|cost|spend|money|£/.test(t)) {
+      list = list.filter(function (i) { return i.type === 'Payment'; });
+      var total = list.reduce(function (a, i) { return a + (i.amount || 0); }, 0);
+      title = 'PAYMENTS AHEAD';
+      var blank = list.filter(function (i) { return !i.amount; }).length;
+      lead = !list.length ? 'No payments are recorded ahead of today.'
+        : titleCase(count(list.length, 'payment', 'payments')) + ' ahead' + (total ? ', ' + money(total) + ' in total' : '') + '.' +
+          (blank ? ' ' + titleCase(count(blank, 'of them has', 'of them have')) + ' no amount on it yet.' : '');
+    } else if (/week|next few days|soon|coming up/.test(t)) {
+      list = list.filter(function (i) { var n = days(i.date); return n >= 0 && n <= 7; });
+      title = 'THE NEXT SEVEN DAYS';
+      lead = list.length + ' thing' + (list.length === 1 ? '' : 's') + ' inside seven days.';
+    } else {
+      var hit = null;
+      for (var id in SEG_WORDS) {
+        if (S.chosen.indexOf(id) < 0) continue;
+        SEG_WORDS[id].forEach(function (w) { if (t.indexOf(w) > -1) hit = id; });
+      }
+      if (hit) {
+        list = list.filter(function (i) { return i.seg === hit; });
+        title = seg(hit).name.toUpperCase();
+        lead = list.length + ' open item' + (list.length === 1 ? '' : 's') + ' in ' + seg(hit).name + '.';
+      } else {
+        list = attention();
+        title = 'WHAT NEEDS YOU';
+        lead = brief();
+      }
+    }
+    list = list.slice().sort(function (a, b) { return a.date - b.date; }).slice(0, 6);
+    return { title: title, lead: lead, list: list };
+  }
+
+  SCREENS.assistant = function () {
+    var body = '';
+    if (S.heard) {
+      body += '<div class="label" style="margin-top:22px">YOU SAID · ' + (S.heardLen || '0:06') + '</div>' +
+        '<p class="quote" style="margin:10px 0 0">“' + esc(S.heard) + '”</p>';
+    }
+    if (S.answerData) {
+      var a = S.answerData;
+      body += sectionHead(a.title, 'FROM YOUR ITEMS') +
+        '<p style="font-family:var(--serif);font-size:19px;line-height:1.4;margin:16px 0 4px">' + a.lead + '</p>' +
+        (a.list.length ? a.list.map(function (i) { return itemRow(i, { abs: true }); }).join('') : '<p class="empty-note">Nothing to show.</p>') +
+        '<p style="font-size:12px;color:#8b9099;line-height:1.6;margin:16px 0 0">Counted from your saved items, not guessed.</p>';
+    } else if (S.proposals.length) {
+      var n = S.proposals.length;
+      body += '<div class="sec"><span class="label">' + (n === 1 ? 'ONE THING IN THAT' : (n === 2 ? 'TWO THINGS' : n + ' THINGS') + ' IN THAT') + '</span>' +
+        '<button class="label-sm" data-act="retype" style="color:#1d3f63">EDIT TRANSCRIPT</button></div><div class="hr"></div>' +
+        S.proposals.map(function (p) {
+          var s = seg(p.seg);
+          return '<div style="padding:16px 0 17px;border-bottom:1px solid #e4e4e0">' +
+            '<div style="display:flex;align-items:center;gap:9px">' +
+              '<span style="font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:#fff;background:#1d3f63;padding:3px 7px">' + p.type.toUpperCase() + '</span>' +
+              sq(s.color) + '<span class="label-sm">' + esc(s.name.toUpperCase()) + '</span>' +
+              (p.segGuess ? '<span class="label-sm" style="color:#8c3a2b">segment is a guess</span>' : '') +
+            '</div>' +
+            '<p style="font-size:16px;font-weight:500;line-height:1.35;margin:11px 0 0">' + esc(p.title) + '</p>' +
+            '<div style="display:flex;align-items:center;gap:14px;margin-top:9px;font-family:var(--mono);font-size:11px">' +
+              '<span style="color:#585e66">' + (p.date ? (p.dateGuess ? 'BY ' : '') + DAYS[p.date.getDay()] + ' ' + monDate(p.date).toUpperCase() : 'no date') + '</span>' +
+              (p.amount ? '<span style="color:#585e66">' + money(p.amount) + '</span>' : (p.type === 'Payment' ? '<span style="color:#8b9099">no amount yet</span>' : '')) +
+              (p.dateGuess ? '<span style="color:#8c3a2b">date is a guess</span>' : '') +
+            '</div>' +
+            '<div style="display:flex;gap:8px;margin-top:13px">' +
+              '<button data-act="accept" data-v="' + p.id + '" style="background:#1d3f63;color:#fff;padding:11px 20px;font-size:13px;font-weight:500">Add it</button>' +
+              '<button data-act="change" data-v="' + p.id + '" style="border:1px solid #d8d8d3;background:#fff;padding:11px 18px;font-size:13px;font-weight:500">Change</button>' +
+              '<button data-act="drop" data-v="' + p.id + '" style="padding:11px 14px;font-size:13px;color:#8b9099">Drop</button>' +
+            '</div></div>';
+        }).join('') +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 0">' +
+          '<span style="font-size:12.5px;color:#8b9099">Nothing is saved until you say so.</span>' +
+          (n > 1 ? '<button class="label-sm" data-act="accept-all" style="color:#1d3f63;font-size:10px">ADD ALL ' + n + '</button>' : '') +
+        '</div>';
+    } else if (!S.heard) {
+      body += '<h1 class="display" style="font-size:25px;margin:26px 0 0">Say it the way you would say it to a person.</h1>' +
+        sectionHead('TRY') +
+        ['I need to pay the contractor £3,500 next Friday and check if the wedding photographer deposit is due this month',
+         'Remind me to call the investment advisor on Monday',
+         'What payments are coming up?',
+         'What is open in the house?'].map(function (x) {
+          return '<button class="row" data-act="try" data-v="' + esc(x) + '">' +
+            '<span style="flex:1;font-family:var(--serif);font-size:16px;font-style:italic;line-height:1.4">“' + esc(x) + '”</span>' +
+            '<span style="flex:none;padding-top:3px">' + svg('chev', 13, '#8b9099', 1.7) + '</span></button>';
+        }).join('');
+    }
+    return header('<button data-act="close-assistant"><span class="label">CLOSE</span></button>',
+        '<span class="wordmark" style="font-size:16px">Assistant</span>' +
+        '<span style="display:flex;align-items:center;gap:5px">' + sq(S.heard ? '#2f5d50' : '#d8d8d3', 5) +
+        '<span class="label-sm">' + (S.heard ? 'HEARD' : 'READY') + '</span></span>') +
+      '<div class="scroll pad-bottom">' + body + '</div>' +
+      '<button class="capture" data-act="listen" style="padding:18px 24px">' +
+        '<span style="flex:none;width:46px;height:46px;border:1px solid #1d3f63;display:flex;align-items:center;justify-content:center">' + svg('mic', 19, '#1d3f63') + '</span>' +
+        '<span style="flex:1"><span style="display:block;font-size:13.5px;font-weight:500">Ask something else</span>' +
+        '<span style="display:block;font-size:12px;color:#8b9099;margin-top:2px">“What payments are coming up?”</span></span></button>';
+  };
+
+  var SHEETS = {};
+
+  SHEETS.listen = function () {
+    var supported = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    return '<div class="head" style="padding:18px 24px 0"><div class="head-rule">' +
+        '<span class="label">' + (S.listening ? 'LISTENING' : 'SAY IT OR TYPE IT') + '</span>' +
+        '<button data-act="close-sheet"><span class="label" style="color:#1d3f63">CANCEL</span></button>' +
+      '</div></div>' +
+      '<div style="padding:18px 24px 0">' +
+        '<textarea id="say" class="type-in" rows="4" placeholder="I need to pay the contractor £3,500 next Friday…">' + esc(S.sayText || '') + '</textarea>' +
+      '</div>' +
+      '<div style="padding:8px 24px 0;display:flex;align-items:center;gap:12px">' +
+        (supported
+          ? '<button data-act="mic" style="flex:none;width:46px;height:46px;border:1px solid ' + (S.listening ? '#8c3a2b' : '#1d3f63') + ';display:flex;align-items:center;justify-content:center"' +
+            ' aria-label="' + (S.listening ? 'Stop listening' : 'Start listening') + '">' +
+            (S.listening ? '<span class="rec-dot pulse"></span>' : svg('mic', 19, '#1d3f63')) + '</button>'
+          : '') +
+        '<span style="flex:1;font-size:12px;color:#8b9099;line-height:1.5">' +
+          (supported ? (S.listening ? 'Speaking now — tap the square to stop.' : 'Tap the microphone to speak, or just type.')
+                     : 'This browser does not do speech. Type it instead — the parsing is the same.') + '</span>' +
+      '</div>' +
+      '<div class="foot" style="padding:18px 24px 26px">' +
+        '<button class="btn btn-primary" data-act="submit-say">Send to assistant</button>' +
+      '</div>';
+  };
+
+  SHEETS.item = function () {
+    var it = null;
+    S.items.forEach(function (i) { if (i.id === S.sheetV) it = i; });
+    if (!it) return '';
+    var s = seg(it.seg);
+    function kv(k, v) { return '<div class="field"><span class="field-k">' + k + '</span><span class="field-v">' + v + '</span></div>'; }
+    return '<div class="head" style="padding:18px 24px 0"><div class="head-rule">' +
+        '<span style="display:flex;align-items:center;gap:7px">' + sq(s.color) + '<span class="label">' + esc(s.name.toUpperCase()) + '</span></span>' +
+        '<button data-act="close-sheet"><span class="label" style="color:#1d3f63">CLOSE</span></button>' +
+      '</div></div>' +
+      '<div style="padding:0 24px;overflow-y:auto">' +
+        '<h2 class="display" style="font-size:23px;margin:20px 0 16px">' + esc(it.title) + '</h2>' +
+        kv('TYPE', it.type) +
+        kv(it.type === 'Payment' || it.type === 'Deadline' ? 'DUE' : 'WHEN', it.date ? longDate(it.date) : 'No date') +
+        (it.amount ? kv('AMOUNT', '<span style="font-family:var(--mono)">' + money(it.amount) + '</span>') : '') +
+        (it.at ? kv('TIME', it.at) : '') +
+        kv('STATUS', it.done ? 'Done' : relative(it.date) === 'TODAY' ? 'Due today' : titleCase(relative(it.date).toLowerCase())) +
+      '</div>' +
+      '<div class="foot" style="padding:18px 24px 26px">' +
+        '<button class="btn btn-primary" data-act="check" data-v="' + it.id + '">' + (it.done ? 'Reopen it' : 'Mark it done') + '</button>' +
+        '<button class="btn btn-quiet" data-act="delete" data-v="' + it.id + '" style="color:#8c3a2b;text-align:center">Delete</button>' +
+      '</div>';
+  };
+
+  SHEETS.pickseg = function () {
+    return '<div class="head" style="padding:18px 24px 0"><div class="head-rule">' +
+        '<span class="label">CHOOSE A SEGMENT</span>' +
+        '<button data-act="close-sheet"><span class="label" style="color:#1d3f63">CANCEL</span></button></div></div>' +
+      '<div style="padding:0 24px 26px;overflow-y:auto">' + S.chosen.map(function (id) {
+        var s = seg(id);
+        return '<button class="row" data-act="set-seg" data-v="' + id + '" style="align-items:center">' + sq(s.color) +
+          '<span class="title-line" style="flex:1">' + s.name + '</span></button>';
+      }).join('') + '</div>';
+  };
+
+  SHEETS.pickdate = function () {
+    var opts = [['No date', -1], ['Today', 0], ['Tomorrow', 1], [DAYS_FULL[addDays(3).getDay()] + ' · ' + monDate(addDays(3)), 3],
+                ['In a week · ' + monDate(addDays(7)), 7], ['In two weeks · ' + monDate(addDays(14)), 14],
+                ['End of the month · ' + monDate(new Date(TODAY.getFullYear(), TODAY.getMonth() + 1, 0)), 99]];
+    return '<div class="head" style="padding:18px 24px 0"><div class="head-rule">' +
+        '<span class="label">WHEN</span>' +
+        '<button data-act="close-sheet"><span class="label" style="color:#1d3f63">CANCEL</span></button></div></div>' +
+      '<div style="padding:0 24px 26px;overflow-y:auto">' + opts.map(function (o) {
+        return '<button class="row" data-act="set-date" data-v="' + o[1] + '" style="align-items:center">' +
+          '<span class="title-line" style="flex:1">' + o[0] + '</span></button>';
+      }).join('') + '</div>';
+  };
+
+  function render() {
+    var html = (SCREENS[S.screen] || SCREENS.today)();
+    if (S.sheet) html += '<div class="sheet-wrap" data-act="close-sheet"><div class="sheet" data-stop="1">' + SHEETS[S.sheet]() + '</div></div>';
+    if (S.toast) html += '<div class="toast"><span>' + esc(S.toast) + '</span><button data-act="undo">UNDO</button></div>';
+    root.innerHTML = html;
+    var ta = root.querySelector('#say') || root.querySelector('#draft-title');
+    if (ta && S.focusText) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); S.focusText = false; }
+  }
+
+  function openSheet(name, v) { S.sheet = name; S.sheetV = v; render(); }
+  function syncDraft() {
+    var t = root.querySelector('#draft-title'), a = root.querySelector('#draft-amount');
+    if (t && S.draft) S.draft.title = t.value;
+    if (a && S.draft) S.draft.amount = parseFloat(a.value.replace(/[^\d.]/g, '')) || null;
+  }
+
+  var ACTS = {
+    go: function (v) { go(v); },
+    tab: function (v) { S.filter = 'all'; go(v === 'today' ? 'today' : v, { tab: v }); },
+    back: function () { go('segments', { tab: 'segments' }); },
+    connect: function () { S.settings.calendar = true; go('segsetup'); },
+    'skip-cal': function () { S.settings.calendar = false; go('segsetup'); },
+    'toggle-seg': function (v) {
+      var i = S.chosen.indexOf(v);
+      if (i > -1) S.chosen.splice(i, 1); else S.chosen.push(v);
+      render();
+    },
+    'finish-setup': function () { go('today', { tab: 'today' }); },
+    'open-seg': function (v) { go('segdetail', { seg: v, tab: 'segments' }); },
+    'open-item': function (v) { openSheet('item', v); },
+    'close-sheet': function () { S.sheet = null; S.listening = false; stopMic(); render(); },
+    filter: function (v) { S.filter = v; render(); },
+    set: function (v) { S.settings[v] = !S.settings[v]; render(); },
+    check: function (v) {
+      S.items.forEach(function (i) { if (i.id === v) { i.done = !i.done; i.flag = false; S.last = i; } });
+      S.sheet = null;
+      toast(S.last.done ? 'Marked done' : 'Reopened');
+    },
+    'delete': function (v) {
+      S.items = S.items.filter(function (i) { if (i.id === v) { S.last = i; return false; } return true; });
+      S.sheet = null; S.lastAction = 'delete';
+      toast('Deleted');
+    },
+    undo: function () {
+      if (S.lastAction === 'delete' && S.last) { S.items.push(S.last); S.lastAction = null; }
+      else if (S.last) { S.last.done = !S.last.done; }
+      S.toast = null; render();
+    },
+    'add-to': function (v) { S.draft = newDraft({ seg: v }); S.focusText = true; go('add'); },
+    cancel: function () { S.draft = null; go(S.tab === 'today' ? 'today' : S.tab); },
+    'draft-type': function (v) { syncDraft(); S.draft.type = v; render(); },
+    'draft-tog': function (v) { syncDraft(); S.draft[v] = !S.draft[v]; render(); },
+    'pick-seg': function () { syncDraft(); openSheet('pickseg'); },
+    'pick-date': function () { syncDraft(); openSheet('pickdate'); },
+    'set-seg': function (v) {
+      if (S.editing) { S.proposals.forEach(function (p) { if (p.id === S.editing) { p.seg = v; p.segGuess = false; } }); }
+      else S.draft.seg = v;
+      S.sheet = null; render();
+    },
+    'set-date': function (v) {
+      var n = parseInt(v, 10);
+      var dt = n === -1 ? null : n === 99 ? new Date(TODAY.getFullYear(), TODAY.getMonth() + 1, 0) : addDays(n);
+      if (S.editing) { S.proposals.forEach(function (p) { if (p.id === S.editing) { p.date = dt; p.dateGuess = false; } }); S.editing = null; }
+      else S.draft.date = dt;
+      S.sheet = null; render();
+    },
+    'save-draft': function () {
+      syncDraft();
+      if (!S.draft.title.trim()) { toast('Give it a name first'); return; }
+      S.items.push(item({ title: S.draft.title.trim(), type: S.draft.type, seg: S.draft.seg,
+        date: S.draft.date || addDays(7), amount: S.draft.amount }));
+      var name = seg(S.draft.seg).name;
+      S.draft = null;
+      go('segdetail', { seg: S.items[S.items.length - 1].seg, tab: 'segments' });
+      toast('Saved to ' + name);
+    },
+    listen: function () { S.sayText = ''; S.focusText = true; openSheet('listen'); },
+    try: function (v) { S.sayText = v; S.focusText = true; openSheet('listen'); },
+    retype: function () { S.sayText = S.heard; S.focusText = true; openSheet('listen'); },
+    'close-assistant': function () {
+      S.heard = null; S.proposals = []; S.answerData = null;
+      go(S.tab, { tab: S.tab });
+    },
+    'submit-say': function () {
+      var el = root.querySelector('#say');
+      var text = (el ? el.value : S.sayText || '').trim();
+      stopMic();
+      if (!text) { S.sheet = null; render(); return; }
+      S.heard = text;
+      S.heardLen = '0:' + String(Math.min(59, Math.max(4, Math.round(text.length / 14)))).padStart(2, '0');
+      if (isQuestion(text)) { S.answerData = answer(text); S.proposals = []; }
+      else { S.proposals = parseAll(text); S.answerData = null; }
+      S.sheet = null;
+      go('assistant');
+    },
+    accept: function (v) {
+      var p = null;
+      S.proposals.forEach(function (x) { if (x.id === v) p = x; });
+      if (!p) return;
+      S.items.push(item({ title: p.title, type: p.type, seg: p.seg, date: p.date || addDays(7), amount: p.amount }));
+      S.proposals = S.proposals.filter(function (x) { return x.id !== v; });
+      if (!S.proposals.length) { S.heard = null; go(S.tab, { tab: S.tab }); toast('Added to ' + seg(p.seg).name); }
+      else { render(); toast('Added to ' + seg(p.seg).name); }
+    },
+    'accept-all': function () {
+      S.proposals.forEach(function (p) {
+        S.items.push(item({ title: p.title, type: p.type, seg: p.seg, date: p.date || addDays(7), amount: p.amount }));
+      });
+      var n = S.proposals.length;
+      S.proposals = []; S.heard = null;
+      go(S.tab, { tab: S.tab });
+      toast('Added ' + n + ' items');
+    },
+    drop: function (v) {
+      S.proposals = S.proposals.filter(function (x) { return x.id !== v; });
+      if (!S.proposals.length) { S.heard = null; go(S.tab, { tab: S.tab }); } else render();
+    },
+    change: function (v) { S.editing = v; openSheet('pickdate'); },
+    reset: function () { location.reload(); }
+  };
+
+  root.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-act]');
+    if (!el) return;
+    if (el.classList.contains('sheet-wrap') && e.target !== el) return;
+    var act = el.getAttribute('data-act');
+    if (ACTS[act]) { e.preventDefault(); ACTS[act](el.getAttribute('data-v')); }
+  });
+
+  var rec = null;
+  function stopMic() { if (rec) { try { rec.stop(); } catch (e) {} rec = null; } S.listening = false; }
+  ACTS.mic = function () {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+    if (S.listening) { var el0 = root.querySelector('#say'); if (el0) S.sayText = el0.value; stopMic(); render(); return; }
+    var el = root.querySelector('#say');
+    S.sayText = el ? el.value : '';
+    rec = new SR();
+    rec.continuous = true; rec.interimResults = true; rec.lang = 'en-GB';
+    var base = S.sayText ? S.sayText + ' ' : '';
+    rec.onresult = function (ev) {
+      var out = '';
+      for (var i = 0; i < ev.results.length; i++) out += ev.results[i][0].transcript;
+      var box = root.querySelector('#say');
+      if (box) box.value = base + out;
+      S.sayText = base + out;
+    };
+    rec.onerror = function () { stopMic(); render(); };
+    rec.onend = function () { if (S.listening) { S.listening = false; render(); } };
+    try { rec.start(); S.listening = true; } catch (e) { stopMic(); }
+    render();
+  };
+
+  render();
+})();
+</script>

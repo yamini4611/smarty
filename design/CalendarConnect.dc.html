@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #1d3f63; } a:hover { color: #14293f; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #fafaf9; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #1a1d21; display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="padding: 34px 28px 0;">
+    <div style="display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid #1a1d21; padding-bottom: 9px;">
+      <div style="font-family: 'Newsreader', Georgia, serif; font-size: 18px; font-weight: 600; letter-spacing: -0.01em;">Ballast</div>
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #8b9099;">STEP 1 OF 2</div>
+    </div>
+  </div>
+
+  <div style="flex: 1; min-height: 0; padding: 30px 28px 0; display: flex; flex-direction: column; overflow: hidden;">
+
+    <div style="font-family: 'Newsreader', Georgia, serif; font-size: 29px; font-weight: 500; line-height: 1.22; letter-spacing: -0.018em;">Connect your calendar</div>
+
+    <div style="font-size: 14px; line-height: 1.6; color: #585e66; margin-top: 14px;">Your calendar is one input, not the whole picture. Reading it lets Ballast put what's already scheduled next to what isn't — the quotes, payments and decisions that never make it into a meeting slot.</div>
+
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.12em; color: #8b9099; margin-top: 34px;">WHAT BALLAST READS</div>
+    <div style="height: 1px; background: #1a1d21; margin-top: 9px;"></div>
+
+    <div style="display: flex; align-items: flex-start; gap: 12px; padding: 14px 0; border-bottom: 1px solid #e4e4e0;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2f5d50" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 2px;"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+      <div style="flex: 1; font-size: 13.5px; line-height: 1.5;">Event titles, dates and times for the next 12 months</div>
+    </div>
+
+    <div style="display: flex; align-items: flex-start; gap: 12px; padding: 14px 0; border-bottom: 1px solid #e4e4e0;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2f5d50" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 2px;"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+      <div style="flex: 1; font-size: 13.5px; line-height: 1.5;">New events as they're added, so nothing goes stale</div>
+    </div>
+
+    <div style="display: flex; align-items: flex-start; gap: 12px; padding: 14px 0; border-bottom: 1px solid #e4e4e0;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8c3a2b" stroke-width="1.6" stroke-linecap="round" style="flex: none; margin-top: 2px;"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      <div style="flex: 1; font-size: 13.5px; line-height: 1.5; color: #585e66;">Nothing is written to your calendar without asking you first</div>
+    </div>
+
+    <div style="display: flex; align-items: flex-start; gap: 12px; padding: 14px 0;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8c3a2b" stroke-width="1.6" stroke-linecap="round" style="flex: none; margin-top: 2px;"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      <div style="flex: 1; font-size: 13.5px; line-height: 1.5; color: #585e66;">No contacts, no email, no files</div>
+    </div>
+
+    <div style="font-size: 12.5px; line-height: 1.6; color: #8b9099; margin-top: 20px;">You'll choose which events actually matter. A dentist appointment can stay just an appointment; a contractor visit can become part of Home Remodeling.</div>
+
+  </div>
+
+  <div style="padding: 0 28px 44px; display: flex; flex-direction: column; gap: 10px;">
+    <div style="background: #1d3f63; color: #ffffff; padding: 17px 20px; text-align: center; font-size: 14.5px; font-weight: 500;">Connect Google Calendar</div>
+    <div style="border: 1px solid #d8d8d3; padding: 17px 20px; text-align: center; font-size: 14px; font-weight: 500; color: #585e66;">Apple Calendar — coming later</div>
+    <div style="padding: 13px 20px; text-align: center; font-size: 13.5px; color: #1d3f63; font-weight: 500;">Skip for now</div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

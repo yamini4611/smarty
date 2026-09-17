@@ -1,165 +1,39 @@
 {
   "artboards": [
-    {
-      "file": "Main.dc.html",
-      "x": 0,
-      "y": 0,
-      "w": 390,
-      "h": 844,
-      "title": "Today"
-    },
-    {
-      "file": "Overdue.dc.html",
-      "x": 470,
-      "y": 0,
-      "w": 390,
-      "h": 844,
-      "title": "Overdue"
-    },
-    {
-      "file": "Inbox.dc.html",
-      "x": 940,
-      "y": 0,
-      "w": 390,
-      "h": 844,
-      "title": "Inbox"
-    },
-    {
-      "file": "Projects.dc.html",
-      "x": 1410,
-      "y": 0,
-      "w": 390,
-      "h": 844,
-      "title": "Projects"
-    },
-    {
-      "file": "VoiceRecording.dc.html",
-      "x": 0,
-      "y": 1160,
-      "w": 390,
-      "h": 844,
-      "title": "Recording a note"
-    },
-    {
-      "file": "VoiceTranscript.dc.html",
-      "x": 470,
-      "y": 1160,
-      "w": 390,
-      "h": 844,
-      "title": "Transcript first"
-    },
-    {
-      "file": "ConfirmCard.dc.html",
-      "x": 940,
-      "y": 1160,
-      "w": 390,
-      "h": 844,
-      "title": "Confirm before saving"
-    },
-    {
-      "file": "Offline.dc.html",
-      "x": 1410,
-      "y": 1160,
-      "w": 390,
-      "h": 844,
-      "title": "Offline capture"
-    },
-    {
-      "file": "QueryStructured.dc.html",
-      "x": 0,
-      "y": 2320,
-      "w": 390,
-      "h": 844,
-      "title": "Asking about your schedule"
-    },
-    {
-      "file": "QuerySemantic.dc.html",
-      "x": 470,
-      "y": 2320,
-      "w": 390,
-      "h": 844,
-      "title": "Asking what you said"
-    },
-    {
-      "file": "Notes.dc.html",
-      "x": 940,
-      "y": 2320,
-      "w": 390,
-      "h": 844,
-      "title": "Notes"
-    },
-    {
-      "file": "Settings.dc.html",
-      "x": 1410,
-      "y": 2320,
-      "w": 390,
-      "h": 844,
-      "title": "Settings"
-    },
-    {
-      "file": "ActionQueue.dc.html",
-      "x": 0,
-      "y": 3480,
-      "w": 390,
-      "h": 844,
-      "title": "Approvals & digest"
-    },
-    {
-      "file": "DailySweep.dc.html",
-      "x": 470,
-      "y": 3480,
-      "w": 390,
-      "h": 844,
-      "title": "Daily sweep"
-    },
-    {
-      "file": "ReviewDaily.dc.html",
-      "x": 940,
-      "y": 3480,
-      "w": 390,
-      "h": 844,
-      "title": "Daily review"
-    },
-    {
-      "file": "ReviewWeekly.dc.html",
-      "x": 1410,
-      "y": 3480,
-      "w": 390,
-      "h": 844,
-      "title": "Weekly review"
-    }
+    { "file": "Login.dc.html",           "x": 0,    "y": 0,    "w": 390, "h": 844, "title": "Login" },
+    { "file": "CalendarConnect.dc.html", "x": 470,  "y": 0,    "w": 390, "h": 844, "title": "Connect calendar" },
+    { "file": "SegmentSetup.dc.html",    "x": 940,  "y": 0,    "w": 390, "h": 844, "title": "Choose life segments" },
+
+    { "file": "Main.dc.html",            "x": 0,    "y": 1160, "w": 390, "h": 844, "title": "Dashboard" },
+    { "file": "SegmentDetail.dc.html",   "x": 470,  "y": 1160, "w": 390, "h": 844, "title": "Segment detail" },
+    { "file": "Timeline.dc.html",        "x": 940,  "y": 1160, "w": 390, "h": 844, "title": "Timeline" },
+
+    { "file": "AddItem.dc.html",         "x": 0,    "y": 2320, "w": 390, "h": 844, "title": "Add item" },
+    { "file": "Assistant.dc.html",       "x": 470,  "y": 2320, "w": 390, "h": 844, "title": "Assistant" },
+    { "file": "Settings.dc.html",        "x": 940,  "y": 2320, "w": 390, "h": 844, "title": "Settings" }
   ],
   "annotations": [
     {
-      "id": "row-dashboard",
+      "id": "row-firstrun",
       "x": 0,
       "y": -240,
-      "w": 760,
-      "text": "THE DASHBOARD \u2014 spec \u00a75\nTime is the primary axis, life areas filter it. Today groups by priority rather than by hour, because most commitments have a date but no time. Undated things stay in the Inbox and out of your way."
+      "w": 800,
+      "text": "FIRST RUN — requirements §4\nGoogle first, because it carries the calendar. The connect screen earns the permission by saying plainly what is read and what is never touched, then segments are chosen as a plain checklist rather than decorative tiles."
     },
     {
-      "id": "row-capture",
+      "id": "row-daily",
       "x": 0,
       "y": 920,
-      "w": 760,
-      "text": "CAPTURE \u2014 spec \u00a76 and \u00a77\nHold to speak. The transcript comes back before anything is interpreted, so a wrong result tells you immediately whether it misheard you or misread you. The note is kept either way \u2014 even when there's no task in it. Capture also works with no signal."
+      "w": 800,
+      "text": "THE COMMAND CENTRE — requirements §5.1 to §5.3\nNot a calendar. The dashboard opens with a written line, then Needs Attention, then the week, then a ledger of segments. Dates sit right-aligned in monospace so deadlines line up and can be scanned in one pass; red is reserved for things that are actually late."
     },
     {
-      "id": "row-recall",
+      "id": "row-input",
       "x": 0,
       "y": 2080,
-      "w": 760,
-      "text": "ASK & RECALL \u2014 spec \u00a78\nTwo different questions, two different engines. \"What's on Thursday\" is counted from the database, never guessed by a model. \"What did I say about the budget\" comes from your own notes, and always shows which ones."
-    },
-    {
-      "id": "row-proactive",
-      "x": 0,
-      "y": 3240,
-      "w": 760,
-      "text": "PROACTIVE & SAFE \u2014 spec \u00a711 and \u00a713\nAnything other people would see waits for a yes. Anything reversible just happens, and appears here with an undo. The weekly review is the one screen that argues for work you never asked about."
+      "w": 800,
+      "text": "ADDING, ASKING, CONTROLLING — requirements §5.4 to §5.8\nOne spoken sentence becomes two proposed items, each editable, neither saved until confirmed. Where the assistant is unsure it says so rather than presenting a guess as fact."
     }
   ],
-  "launch": {
-    "view": "canvas"
-  }
+  "launch": { "view": "canvas" }
 }

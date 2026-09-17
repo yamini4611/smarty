@@ -173,6 +173,7 @@
 
   var S = {
     screen: 'login',
+    onboarded: false,
     tab: 'today',
     openSeg: 'home',
     filter: 'all',
@@ -203,6 +204,47 @@
       item({ title: 'Signed the mortgage paperwork', type: 'Milestone', seg: 'finance', date: d(2026,8,10), done: true })
     ]
   };
+
+  var API = null;
+  var KEY = 'ballast.demo.v1';
+  var ISO = function (dt) { return dt ? dt.getFullYear() + '-' + ('0' + (dt.getMonth() + 1)).slice(-2) + '-' + ('0' + dt.getDate()).slice(-2) : null; };
+
+  function ser(it) {
+    var o = {}; for (var k in it) o[k] = it[k];
+    o.date = ISO(it.date);
+    return o;
+  }
+  function snapshot() {
+    return { items: S.items.map(ser), segments: S.chosen, settings: S.settings, onboarded: S.onboarded };
+  }
+  function absorb(st) {
+    if (!st) return;
+    if (st.items) S.items = st.items.map(function (o) {
+      var it = {}; for (var k in o) it[k] = o[k];
+      it.date = o.date ? new Date(o.date + 'T00:00:00') : null;
+      var n = parseInt(String(o.id).replace(/\D/g, ''), 10);
+      if (n > uid) uid = n;
+      return it;
+    });
+    if (st.segments && st.segments.length) S.chosen = st.segments;
+    if (st.settings) for (var k2 in st.settings) S.settings[k2] = st.settings[k2];
+    S.onboarded = !!st.onboarded;
+  }
+  function call(method, path, body) {
+    return fetch(API + path, {
+      method: method,
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined
+    }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error(r.status)); });
+  }
+  function push(method, path, body) {
+    if (!API) {
+      try { localStorage.setItem(KEY, JSON.stringify(snapshot())); } catch (e) {}
+      return;
+    }
+    call(method, path, body).catch(function () { toast('Backend unreachable — the change is only on screen'); });
+  }
+  function pushAll() { push('PUT', '/api/state', snapshot()); }
 
   var IC = {
     home: '<path d="M4 20V9.6L12 3.5l8 6.1V20H4z"/><path d="M9.6 20v-6.2h4.8V20"/>',
@@ -686,6 +728,14 @@
     return clauses.slice(0, 4).map(parseClause);
   }
 
+  function byId(id) {
+    for (var i = 0; i < S.items.length; i++) if (S.items[i].id === id) return S.items[i];
+    return null;
+  }
+  function localRead(text) {
+    if (isQuestion(text)) { S.answerData = answer(text); S.proposals = []; }
+    else { S.proposals = parseAll(text); S.answerData = null; }
+  }
   function isQuestion(t) {
     return /\?$/.test(t.trim()) || /^(what|when|how much|how many|which|where|show me|do i|is there|are there|who)\b/i.test(t.trim());
   }
@@ -699,11 +749,22 @@
       var blank = list.filter(function (i) { return !i.amount; }).length;
       lead = !list.length ? 'No payments are recorded ahead of today.'
         : titleCase(count(list.length, 'payment', 'payments')) + ' ahead' + (total ? ', ' + money(total) + ' in total' : '') + '.' +
-          (blank ? ' ' + titleCase(count(blank, 'of them has', 'of them have')) + ' no amount on it yet.' : '');
+          (blank ? ' ' + (blank === list.length ? 'None have' : titleCase(count(blank, 'of them has', 'of them have'))) + ' no amount on ' + (blank === 1 ? 'it' : 'them') + ' yet.' : '');
+    } else if (/overdue|late|behind|missed|slipped/.test(t)) {
+      list = list.filter(function (i) { return i.type !== 'Note' && i.date && days(i.date) < 0; });
+      title = 'PAST ITS DATE';
+      lead = list.length ? titleCase(count(list.length, 'item has', 'items have')) + ' gone past the date you set.'
+        : 'Nothing has slipped. Everything still has time on it.';
+    } else if (/\b(today|tonight|right now)\b/.test(t)) {
+      list = list.filter(function (i) { return i.date && days(i.date) === 0; });
+      title = 'TODAY';
+      lead = list.length ? titleCase(count(list.length, 'thing sits', 'things sit')) + ' on today.'
+        : 'Nothing is dated today.';
     } else if (/week|next few days|soon|coming up/.test(t)) {
-      list = list.filter(function (i) { var n = days(i.date); return n >= 0 && n <= 7; });
+      list = list.filter(function (i) { var n = i.date ? days(i.date) : 99; return n >= 0 && n <= 7; });
       title = 'THE NEXT SEVEN DAYS';
-      lead = list.length + ' thing' + (list.length === 1 ? '' : 's') + ' inside seven days.';
+      lead = list.length ? titleCase(count(list.length, 'thing falls', 'things fall')) + ' inside seven days.'
+        : 'The week ahead is clear.';
     } else {
       var hit = null;
       for (var id in SEG_WORDS) {
@@ -720,7 +781,7 @@
         lead = brief();
       }
     }
-    list = list.slice().sort(function (a, b) { return a.date - b.date; }).slice(0, 6);
+    list = list.slice().sort(function (a, b) { return (a.date || 0) - (b.date || 0); }).slice(0, 6);
     return { title: title, lead: lead, list: list };
   }
 
@@ -730,7 +791,10 @@
       body += '<div class="label" style="margin-top:22px">YOU SAID · ' + (S.heardLen || '0:06') + '</div>' +
         '<p class="quote" style="margin:10px 0 0">“' + esc(S.heard) + '”</p>';
     }
-    if (S.answerData) {
+    if (S.thinking) {
+      body += sectionHead('WORKING IT OUT') +
+        '<p class="empty-note">Reading that against your items…</p>';
+    } else if (S.answerData) {
       var a = S.answerData;
       body += sectionHead(a.title, 'FROM YOUR ITEMS') +
         '<p style="font-family:var(--serif);font-size:19px;line-height:1.4;margin:16px 0 4px">' + a.lead + '</p>' +
@@ -886,28 +950,31 @@
     'toggle-seg': function (v) {
       var i = S.chosen.indexOf(v);
       if (i > -1) S.chosen.splice(i, 1); else S.chosen.push(v);
+      push('PUT', '/api/segments', { segments: S.chosen });
       render();
     },
-    'finish-setup': function () { go('today', { tab: 'today' }); },
+    'finish-setup': function () { S.onboarded = true; pushAll(); go('today', { tab: 'today' }); },
     'open-seg': function (v) { go('segdetail', { seg: v, tab: 'segments' }); },
     'open-item': function (v) { openSheet('item', v); },
     'close-sheet': function () { S.sheet = null; S.listening = false; stopMic(); render(); },
     filter: function (v) { S.filter = v; render(); },
-    set: function (v) { S.settings[v] = !S.settings[v]; render(); },
+    set: function (v) { S.settings[v] = !S.settings[v]; push('PUT', '/api/settings', S.settings); render(); },
     check: function (v) {
       S.items.forEach(function (i) { if (i.id === v) { i.done = !i.done; i.flag = false; S.last = i; } });
+      push('PATCH', '/api/items/' + v, { done: S.last.done, flag: false });
       S.sheet = null;
       toast(S.last.done ? 'Marked done' : 'Reopened');
     },
     'delete': function (v) {
       S.items = S.items.filter(function (i) { if (i.id === v) { S.last = i; return false; } return true; });
       S.sheet = null; S.lastAction = 'delete';
+      push('DELETE', '/api/items/' + v);
       toast('Deleted');
     },
     undo: function () {
       if (S.lastAction === 'delete' && S.last) { S.items.push(S.last); S.lastAction = null; }
       else if (S.last) { S.last.done = !S.last.done; }
-      S.toast = null; render();
+      S.toast = null; pushAll(); render();
     },
     'add-to': function (v) { S.draft = newDraft({ seg: v }); S.focusText = true; go('add'); },
     cancel: function () { S.draft = null; go(S.tab === 'today' ? 'today' : S.tab); },
@@ -933,6 +1000,7 @@
       S.items.push(item({ title: S.draft.title.trim(), type: S.draft.type, seg: S.draft.seg,
         date: S.draft.date || addDays(7), amount: S.draft.amount }));
       var name = seg(S.draft.seg).name;
+      push('POST', '/api/items', ser(S.items[S.items.length - 1]));
       S.draft = null;
       go('segdetail', { seg: S.items[S.items.length - 1].seg, tab: 'segments' });
       toast('Saved to ' + name);
@@ -951,16 +1019,30 @@
       if (!text) { S.sheet = null; render(); return; }
       S.heard = text;
       S.heardLen = '0:' + String(Math.min(59, Math.max(4, Math.round(text.length / 14)))).padStart(2, '0');
-      if (isQuestion(text)) { S.answerData = answer(text); S.proposals = []; }
-      else { S.proposals = parseAll(text); S.answerData = null; }
-      S.sheet = null;
+      S.proposals = []; S.answerData = null; S.sheet = null;
+      if (!API) { localRead(text); go('assistant'); return; }
+      S.thinking = true;
       go('assistant');
+      var q = isQuestion(text);
+      call('POST', q ? '/api/assistant/query' : '/api/assistant/parse',
+           { text: text, today: ISO(TODAY), segments: S.chosen })
+        .then(function (res) {
+          S.thinking = false;
+          if (q) S.answerData = { title: res.title, lead: res.lead, list: (res.ids || []).map(byId).filter(Boolean) };
+          else S.proposals = (res.proposals || []).map(function (p) {
+            p.date = p.date ? new Date(p.date + 'T00:00:00') : null;
+            return p;
+          });
+          render();
+        })
+        .catch(function () { S.thinking = false; localRead(text); render(); });
     },
     accept: function (v) {
       var p = null;
       S.proposals.forEach(function (x) { if (x.id === v) p = x; });
       if (!p) return;
       S.items.push(item({ title: p.title, type: p.type, seg: p.seg, date: p.date || addDays(7), amount: p.amount }));
+      push('POST', '/api/items', ser(S.items[S.items.length - 1]));
       S.proposals = S.proposals.filter(function (x) { return x.id !== v; });
       if (!S.proposals.length) { S.heard = null; go(S.tab, { tab: S.tab }); toast('Added to ' + seg(p.seg).name); }
       else { render(); toast('Added to ' + seg(p.seg).name); }
@@ -968,6 +1050,7 @@
     'accept-all': function () {
       S.proposals.forEach(function (p) {
         S.items.push(item({ title: p.title, type: p.type, seg: p.seg, date: p.date || addDays(7), amount: p.amount }));
+        push('POST', '/api/items', ser(S.items[S.items.length - 1]));
       });
       var n = S.proposals.length;
       S.proposals = []; S.heard = null;
@@ -979,7 +1062,11 @@
       if (!S.proposals.length) { S.heard = null; go(S.tab, { tab: S.tab }); } else render();
     },
     change: function (v) { S.editing = v; openSheet('pickdate'); },
-    reset: function () { location.reload(); }
+    reset: function () {
+      try { localStorage.removeItem(KEY); } catch (e) {}
+      if (API) { call('DELETE', '/api/state').then(function () { location.reload(); }, function () { location.reload(); }); }
+      else location.reload();
+    }
   };
 
   root.addEventListener('click', function (e) {
@@ -1014,6 +1101,20 @@
     render();
   };
 
-  render();
+  function boot() {
+    var web = location.protocol === 'http:' || location.protocol === 'https:';
+    var probe = web
+      ? fetch('/api/health', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }, function () { return null; })
+      : Promise.resolve(null);
+    probe.then(function (h) {
+      if (h && h.ballast) { API = location.origin; return call('GET', '/api/state'); }
+      try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; }
+    }, function () { return null; }).then(function (st) {
+      try { absorb(st); } catch (e) {}
+      if (S.onboarded) { S.screen = 'today'; S.tab = 'today'; }
+      render();
+    }, function () { render(); });
+  }
+  boot();
 })();
 </script>

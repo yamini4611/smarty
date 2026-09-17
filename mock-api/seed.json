@@ -1,0 +1,24 @@
+{
+  "segments": ["home", "wedding", "finance", "invest", "family"],
+  "onboarded": false,
+  "settings": { "brief": true, "warn": true, "confirm": true },
+  "items": [
+    { "id": "i1",  "title": "Approve the contractor quote",        "type": "Deadline",  "seg": "home",    "date": "2026-09-18", "flag": true },
+    { "id": "i2",  "title": "Wedding venue deposit",               "type": "Payment",   "seg": "wedding", "date": "2026-09-18", "amount": 4000, "flag": true },
+    { "id": "i3",  "title": "Property tax deadline",               "type": "Deadline",  "seg": "finance", "date": "2026-09-29", "flag": true },
+    { "id": "i4",  "title": "Home inspection",                     "type": "Event",     "seg": "home",    "date": "2026-09-18", "at": "14:30" },
+    { "id": "i5",  "title": "Call the investment advisor",         "type": "Task",      "seg": "invest",  "date": "2026-09-21" },
+    { "id": "i6",  "title": "Review the wedding guest list",       "type": "Task",      "seg": "wedding", "date": "2026-09-22" },
+    { "id": "i7",  "title": "Contractor visit",                    "type": "Event",     "seg": "home",    "date": "2026-09-22", "at": "09:00" },
+    { "id": "i8",  "title": "Review tile options",                 "type": "Task",      "seg": "home",    "date": "2026-09-20" },
+    { "id": "i9",  "title": "Confirm the inspection date",         "type": "Task",      "seg": "home",    "date": "2026-09-18" },
+    { "id": "i10", "title": "Pay the contractor advance",          "type": "Payment",   "seg": "home",    "date": "2026-09-25", "amount": 3500 },
+    { "id": "i11", "title": "Finalise the contractor quote",       "type": "Milestone", "seg": "home",    "date": "2026-09-18" },
+    { "id": "i12", "title": "Prefer matte finish flooring — not the gloss samples.", "type": "Note", "seg": "home", "date": "2026-09-15" },
+    { "id": "i13", "title": "Send the photographer the shot list", "type": "Task",      "seg": "wedding", "date": "2026-09-30" },
+    { "id": "i14", "title": "Rebalance the ISA",                   "type": "Task",      "seg": "invest",  "date": "2026-10-02" },
+    { "id": "i15", "title": "Mum's birthday",                      "type": "Event",     "seg": "family",  "date": "2026-10-04" },
+    { "id": "i16", "title": "Book the tasting menu",               "type": "Task",      "seg": "wedding", "date": "2026-09-26", "done": true },
+    { "id": "i17", "title": "Signed the mortgage paperwork",       "type": "Milestone", "seg": "finance", "date": "2026-09-10", "done": true }
+  ]
+}

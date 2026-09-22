@@ -48,6 +48,12 @@ by `completed / total` tasks in that segment (slow and steady, not a race);
 `target_date` labels the finish end of that same path and is cleared
 automatically if the segment's kind changes away from `'project'`.
 
+A fourth field, `tasks.due_time`, is a task's own optional `"HH:MM"` —
+not every task is time-bound, so it's meaningless without `due_at` and is
+cleared automatically whenever `due_at` is. It's display-only: the
+overdue/approaching/pending bucketing in `status.js` stays date-only, so a
+task doesn't flip states purely because the clock passed its time of day.
+
 ## The task-state engine
 
 `status.js` implements the four states from §3.3 as one pure, purely

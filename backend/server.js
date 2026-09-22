@@ -207,8 +207,8 @@ const server = http.createServer(async (req, res) => {
         const id = newId('t');
         const sg = segmentRow(inBody.segment_id);
         if (!sg) return json(res, 400, { error: 'segment_id must name an existing segment' });
-        db.prepare('INSERT INTO tasks (id,segment_id,title,notes,due_at,priority,status,reminder,calendar_event_id,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
-          .run(id, inBody.segment_id, inBody.title || 'Untitled task', inBody.notes || '', inBody.due_at || null, inBody.priority || 'normal', 'open', inBody.reminder ? JSON.stringify(inBody.reminder) : null, null, null, new Date().toISOString());
+        db.prepare('INSERT INTO tasks (id,segment_id,title,notes,due_at,due_time,priority,status,reminder,calendar_event_id,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
+          .run(id, inBody.segment_id, inBody.title || 'Untitled task', inBody.notes || '', inBody.due_at || null, inBody.due_at ? (inBody.due_time || null) : null, inBody.priority || 'normal', 'open', inBody.reminder ? JSON.stringify(inBody.reminder) : null, null, null, new Date().toISOString());
         log(db, USER_ID, 'task', id, 'created');
         let t = taskRow(id);
         if (inBody.calendarExport && t.due_at) t = exportToCalendar(t);
@@ -248,11 +248,12 @@ const server = http.createServer(async (req, res) => {
       if (!action && m === 'GET') return json(res, 200, decorateTask(t));
       if (!action && m === 'PATCH') {
         const wasDate = t.due_at;
-        const fields = { title: t.title, notes: t.notes, due_at: t.due_at, priority: t.priority, reminder: t.reminder, segment_id: t.segment_id };
-        for (const k of ['title', 'notes', 'due_at', 'priority', 'segment_id']) if (k in inBody) fields[k] = inBody[k];
+        const fields = { title: t.title, notes: t.notes, due_at: t.due_at, due_time: t.due_time, priority: t.priority, reminder: t.reminder, segment_id: t.segment_id };
+        for (const k of ['title', 'notes', 'due_at', 'due_time', 'priority', 'segment_id']) if (k in inBody) fields[k] = inBody[k];
+        if (!fields.due_at) fields.due_time = null;
         if ('reminder' in inBody) fields.reminder = inBody.reminder ? JSON.stringify(inBody.reminder) : null;
-        db.prepare('UPDATE tasks SET title=?, notes=?, due_at=?, priority=?, reminder=?, segment_id=? WHERE id=?')
-          .run(fields.title, fields.notes, fields.due_at, fields.priority, fields.reminder, fields.segment_id, t.id);
+        db.prepare('UPDATE tasks SET title=?, notes=?, due_at=?, due_time=?, priority=?, reminder=?, segment_id=? WHERE id=?')
+          .run(fields.title, fields.notes, fields.due_at, fields.due_time, fields.priority, fields.reminder, fields.segment_id, t.id);
         log(db, USER_ID, 'task', t.id, wasDate !== fields.due_at ? 'rescheduled' : 'edited');
         let updated = taskRow(t.id);
         const dateMoved = fields.due_at !== wasDate;

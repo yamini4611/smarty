@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   title TEXT NOT NULL,
   notes TEXT NOT NULL DEFAULT '',
   due_at TEXT,                   -- ISO date, or null = "No deadline"
+  due_time TEXT,                 -- optional "HH:MM", only meaningful alongside due_at
   priority TEXT NOT NULL DEFAULT 'normal',   -- low | normal | high
   status TEXT NOT NULL DEFAULT 'open',       -- open | completed | archived
   reminder TEXT,                 -- null = inherit the user default, else JSON

@@ -11,6 +11,10 @@ function open() {
   const db = new DatabaseSync(DB_PATH);
   db.exec(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8'));
   db.exec('PRAGMA foreign_keys = ON');
+  // CREATE TABLE IF NOT EXISTS won't add a column to a tasks table that
+  // already exists from before due_time was introduced — patch it in so an
+  // older data.sqlite left lying around still works instead of erroring.
+  try { db.exec('ALTER TABLE tasks ADD COLUMN due_time TEXT'); } catch (e) {}
 
   const empty = db.prepare('SELECT COUNT(*) AS n FROM users').get().n === 0;
   if (empty) plant(db, new Date());
@@ -25,8 +29,8 @@ function plant(db, today) {
   const s = db.prepare('INSERT INTO segments (id,user_id,name,description,icon,color,kind,target_date,sort_order,status,archived_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
   for (const sg of segments) s.run(sg.id, sg.user_id, sg.name, sg.description || '', sg.icon, sg.color, sg.kind || 'permanent', sg.target_date || null, sg.sort_order, sg.status, sg.archived_at, sg.created_at);
 
-  const t = db.prepare('INSERT INTO tasks (id,segment_id,title,notes,due_at,priority,status,reminder,calendar_event_id,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
-  for (const tk of tasks) t.run(tk.id, tk.segment_id, tk.title, tk.notes, tk.due_at, tk.priority, tk.status, tk.reminder, tk.calendar_event_id, tk.completed_at, tk.created_at);
+  const t = db.prepare('INSERT INTO tasks (id,segment_id,title,notes,due_at,due_time,priority,status,reminder,calendar_event_id,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
+  for (const tk of tasks) t.run(tk.id, tk.segment_id, tk.title, tk.notes, tk.due_at, tk.due_time || null, tk.priority, tk.status, tk.reminder, tk.calendar_event_id, tk.completed_at, tk.created_at);
 
   db.prepare('INSERT INTO integrations (id,user_id,provider,permission_scope,token_reference,status) VALUES (?,?,?,?,?,?)')
     .run('ig1', user.id, 'google_calendar', 'calendar.events.write', 'mock-token', 'disconnected');

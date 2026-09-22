@@ -243,6 +243,16 @@
   function daysFrom(iso) { if (!iso) return null; var dt = new Date(iso + 'T00:00:00'); return Math.round((startOfDay(dt) - startOfDay(TODAY)) / 86400000); }
   function monDate(dt) { return dt.getDate() + ' ' + MON[dt.getMonth()]; }
   function longDate(dt) { return DAYS_FULL[dt.getDay()] + ', ' + dt.getDate() + ' ' + MON[dt.getMonth()]; }
+  // "HH:MM" (the native <input type="time"> format) -> "2:00 PM", for
+  // display only — a task's due_time is optional and never drives the
+  // overdue/approaching/pending bucketing, which stays date-only.
+  function timeLabel(hhmm) {
+    if (!hhmm) return '';
+    var parts = hhmm.split(':'), h = +parts[0], m = parts[1];
+    var ap = h >= 12 ? 'PM' : 'AM';
+    h = h % 12; if (h === 0) h = 12;
+    return h + ':' + m + ' ' + ap;
+  }
   function isoOf(dt) { return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0'); }
   function dueChip(iso) {
     if (!iso) return { text: 'No date', cls: 'pending' };
@@ -761,7 +771,7 @@
   };
 
   function newDraftTask(segmentId) {
-    return { id: null, segment_id: segmentId || (activeSegments()[0] || {}).id || null, title: '', notes: '', due_at: null, noDeadlineChosen: false, priority: 'normal', reminder: null, calendarExport: false };
+    return { id: null, segment_id: segmentId || (activeSegments()[0] || {}).id || null, title: '', notes: '', due_at: null, due_time: null, noDeadlineChosen: false, priority: 'normal', reminder: null, calendarExport: false };
   }
 
   function newGuide() {
@@ -859,7 +869,7 @@
           '<button class="field-v' + (!seg ? ' empty' : '') + '" data-act="open-sheet" data-v="pick-segment">' + (seg ? (dot(seg.color, 9) + ' ' + esc(seg.name)) : 'Choose a segment') + '</button></div>' +
         '<div class="field"><div class="field-k">DEADLINE</div>' +
           '<button class="field-v' + (!d.due_at && !d.noDeadlineChosen ? ' empty' : '') + '" data-act="open-sheet" data-v="pick-date">' +
-            (d.due_at ? longDate(new Date(d.due_at + 'T00:00:00')) : (d.noDeadlineChosen ? 'No deadline' : 'Choose…')) + '</button></div>' +
+            (d.due_at ? longDate(new Date(d.due_at + 'T00:00:00')) + (d.due_time ? ' · ' + timeLabel(d.due_time) : '') : (d.noDeadlineChosen ? 'No deadline' : 'Choose…')) + '</button></div>' +
         '<div class="field"><div class="field-k">PRIORITY</div>' +
           '<div class="pillrow">' + ['low', 'normal', 'high'].map(function (pr) {
             return '<button class="opt' + (pr === 'high' ? ' pri-high' : '') + '" aria-pressed="' + (d.priority === pr) + '" data-act="set-draft" data-k="priority" data-v="' + pr + '">' + titleCase(pr) + '</button>';
@@ -971,6 +981,8 @@
       '<div class="scroll pad-bottom" style="margin-top:6px">' +
         opts.map(function (o) { return '<button class="segrow" data-act="set-draft-date" data-v="' + o[1] + '"><span class="task-title" style="flex:1">' + o[0] + '</span><span class="due-chip pending">' + dueChip(o[1]).text + '</span></button>'; }).join('') +
         '<div class="segrow"><span class="task-title" style="flex:1">Pick a date</span><input type="date" id="exact-date-in" class="text-in" style="width:150px;border-bottom:none" value="' + (d.due_at || '') + '"></div>' +
+        '<div class="segrow"><span class="task-title" style="flex:1">Time <span class="task-meta" style="text-transform:none;letter-spacing:0">(optional)</span></span><input type="time" id="exact-time-in" class="text-in" style="width:110px;border-bottom:none" value="' + (d.due_time || '') + '"></div>' +
+        '<button class="segrow" data-act="apply-exact-date" style="color:var(--accent)"><span class="task-title" style="color:var(--accent)">Use this date</span></button>' +
         '<button class="segrow" data-act="set-draft-date" data-v="none" style="color:var(--dim)"><span class="task-title">No deadline</span></button>' +
       '</div>';
   };
@@ -1411,7 +1423,10 @@
       if (val('ns-name-in') !== undefined) S.newSegment.name = val('ns-name-in');
       if (val('ns-desc-in') !== undefined) S.newSegment.description = val('ns-desc-in');
     }
-    if (S.sheet === 'pick-date' && val('exact-date-in')) S._exactDate = val('exact-date-in');
+    if (S.sheet === 'pick-date') {
+      if (val('exact-date-in')) S._exactDate = val('exact-date-in');
+      if (val('exact-time-in') !== undefined) S._exactTime = val('exact-time-in');
+    }
   }
 
   // ---------------------------------------------------------------- actions
@@ -1522,7 +1537,10 @@
 
     'cancel-add-task': function () { S.captureFlow = null; S.proposals = []; go(S.openSegmentId ? 'segment-detail' : (S.tabBefore || 'dashboard')); },
     'start-capture': function () { S.captureFlow = 'listen'; S.draft = ''; render(); },
-    'open-sheet': function (v, el) { openSheet(v, el && el.getAttribute('data-sv')); },
+    'open-sheet': function (v, el) {
+      if (v === 'pick-date') { S._exactDate = S.draft.due_at || ''; S._exactTime = S.draft.due_time || ''; }
+      openSheet(v, el && el.getAttribute('data-sv'));
+    },
     'close-sheet': function () { closeSheet(); },
     'set-draft': function (v, el) { syncFields(); S.draft[el.getAttribute('data-k')] = v; render(); },
     'set-draft-segment': function (v) { syncFields(); S.draft.segment_id = v; closeSheet(); },
@@ -1540,8 +1558,16 @@
     },
     'set-draft-date': function (v) {
       syncFields();
-      if (v === 'none') { S.draft.due_at = null; S.draft.noDeadlineChosen = true; }
-      else { S.draft.due_at = S._exactDate || v; S.draft.noDeadlineChosen = false; }
+      if (v === 'none') { S.draft.due_at = null; S.draft.due_time = null; S.draft.noDeadlineChosen = true; }
+      else { S.draft.due_at = v; S.draft.due_time = S._exactTime || null; S.draft.noDeadlineChosen = false; }
+      closeSheet();
+    },
+    'apply-exact-date': function () {
+      syncFields();
+      if (!S._exactDate) { toast('Pick a date first, or choose “No deadline.”'); return; }
+      S.draft.due_at = S._exactDate;
+      S.draft.due_time = S._exactTime || null;
+      S.draft.noDeadlineChosen = false;
       closeSheet();
     },
     'set-draft-reminder': function (v) {
@@ -1554,7 +1580,7 @@
       var d = S.draft;
       if (!d.title.trim()) { toast('A task needs a title.'); return; }
       if (!d.segment_id) { toast('Choose a segment first.'); return; }
-      var payload = { title: d.title.trim(), notes: d.notes, due_at: d.due_at, priority: d.priority, segment_id: d.segment_id, reminder: d.reminder };
+      var payload = { title: d.title.trim(), notes: d.notes, due_at: d.due_at, due_time: d.due_at ? d.due_time : null, priority: d.priority, segment_id: d.segment_id, reminder: d.reminder };
       var after = function () { toast(d.id ? 'Task updated.' : 'Task added.'); S.captureFlow = null; saveLocal(); go(S.openSegmentId ? 'segment-detail' : (S.tabBefore || 'dashboard')); };
       if (d.id) {
         if (API) call('PATCH', '/api/tasks/' + d.id, payload).then(function (t) { Object.assign(taskById(d.id), t); }).then(after);
@@ -1571,7 +1597,7 @@
     },
     'open-task': function (v) {
       var t = taskById(v);
-      S.draft = { id: t.id, segment_id: t.segment_id, title: t.title, notes: t.notes, due_at: t.due_at, noDeadlineChosen: !t.due_at, priority: t.priority, reminder: t.reminder, calendarExport: !!t.calendar_event_id };
+      S.draft = { id: t.id, segment_id: t.segment_id, title: t.title, notes: t.notes, due_at: t.due_at, due_time: t.due_time || null, noDeadlineChosen: !t.due_at, priority: t.priority, reminder: t.reminder, calendarExport: !!t.calendar_event_id };
       S.captureFlow = null;
       S.tabBefore = S.openSegmentId ? 'segment-detail' : S.screen;
       go('add-task');

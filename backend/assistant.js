@@ -37,6 +37,15 @@ function resolveDate(t, today) {
     delta += 7;
     return { date: add(delta) };
   }
+  // "every <weekday>" names a recurring slot, not an ambiguous one-off — the
+  // data model has no recurrence field, so this becomes its next upcoming
+  // occurrence rather than the "which one did you mean" follow-up a bare
+  // weekday gets below.
+  if ((m = t.match(/\bevery (sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/))) {
+    let delta = (WD.indexOf(m[1]) - today.getDay() + 7) % 7;
+    if (delta === 0) delta = 7;
+    return { date: add(delta) };
+  }
   if ((m = t.match(/\b(?:on |by )?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/))) {
     let delta = (WD.indexOf(m[1]) - today.getDay() + 7) % 7;
     if (delta === 0) delta = 7;
@@ -58,6 +67,23 @@ function resolveDate(t, today) {
   if (/\bnext week\b/.test(t)) return { date: add(7), ambiguous: true, question: 'Which day next week?' };
   if (/\bend of the month\b|\bthis month\b/.test(t)) return { date: new Date(today.getFullYear(), today.getMonth() + 1, 0), ambiguous: true, question: 'Which day this month?' };
   return {};
+}
+
+// A time-of-day phrase — "at 5pm", "at 5:30 pm" — becomes an "HH:MM" the
+// same way whether it came from typing or the mic, since both land in the
+// same text before this ever runs. Only resolves when am/pm (or an explicit
+// minute) makes the hour unambiguous — "at 5" alone could be either 5am or
+// 5pm, and guessing wrong is worse than leaving it unset.
+function resolveTime(t) {
+  const m = t.match(/\bat\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i) || t.match(/\b(\d{1,2}):(\d{2})\s*(am|pm)?\b/i);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const min = m[2] ? parseInt(m[2], 10) : 0;
+  const ap = m[3] ? m[3].toLowerCase() : null;
+  if (isNaN(h) || h > 23 || min > 59) return null;
+  if (ap === 'pm' && h < 12) h += 12;
+  if (ap === 'am' && h === 12) h = 0;
+  return String(h).padStart(2, '0') + ':' + String(min).padStart(2, '0');
 }
 
 function reminderFrom(clause) {
@@ -91,10 +117,12 @@ function cleanTitle(raw) {
     .replace(/^(i need to|i have to|i must|i should|please|can you|remind me to|remember to|don'?t forget to|i want to)\s+/i, '')
     .replace(/^for (?:my |our |the )?[^,]{1,40},\s*/i, '')
     .replace(/,?\s*(?:and\s+)?remind me (?:the day before|of it|about it)\b.*/i, '')
-    .replace(/\b(?:on |by )?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi, '')
+    .replace(/\b(?:on |by |every )?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi, '')
     .replace(/\b(tomorrow|today|tonight|next week|this month|end of the month)\b/gi, '')
     .replace(/\bin \d+ days?\b/gi, '')
     .replace(/\b(?:on |by |before )?the \d{1,2}(?:st|nd|rd|th)\b/gi, '')
+    .replace(/\bat\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/gi, '')
+    .replace(/\b\d{1,2}:\d{2}\s*(?:am|pm)?\b/gi, '')
     .replace(/,?\s*\b(?:urgent|asap|immediately|critical|whenever|no rush|low priority)\b\.?/gi, '')
     .replace(/\s{2,}/g, ' ').replace(/\s+([,.])/g, '$1').replace(/[,\s]+$/, '').trim();
 }
@@ -122,6 +150,7 @@ function parse(text, opts) {
   return clauses.map((raw, i) => {
     const t = raw.toLowerCase();
     const when = resolveDate(t, today);
+    const time = resolveTime(t);
     const segment = matchSegment(raw, segments);
     const title = cap(cleanTitle(raw)) || cap(raw.trim());
     let priority = 'normal';
@@ -137,6 +166,8 @@ function parse(text, opts) {
       date: when.date ? iso(when.date) : null,
       dateAmbiguous: !!when.ambiguous,
       followUp: when.question || null,
+      alt: when.alt ? iso(when.alt) : null,
+      time,
       priority,
       reminder: reminderFrom(raw)
     };

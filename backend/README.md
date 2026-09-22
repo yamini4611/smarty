@@ -77,9 +77,14 @@ status signal."
   responsibilities become separate, individually editable proposals. A bare
   weekday ("Friday") is genuinely ambiguous — which one? — so it comes back
   with a follow-up question and two concrete choices instead of a silent
-  guess; "next Friday" resolves outright. Pass `listMode: true` (used by the
-  "Add first tasks" onboarding screen) to split on a plain comma-separated
-  list instead of full-sentence clause boundaries.
+  guess; "next Friday" resolves outright, and so does "every Friday" (there's
+  no recurrence field, so it's treated as that weekday's next occurrence, not
+  a repeating series). A clause also carries an optional `time` ("17:00"),
+  read from an "at 5pm" / "5:30pm" style phrase in the same text — it only
+  resolves when am/pm or an explicit minute makes the hour unambiguous, same
+  "don't guess" rule as the date. Pass `listMode: true` (used by the "Add
+  first tasks" onboarding screen) to split on a plain comma-separated list
+  instead of full-sentence clause boundaries.
 - `answer(text, ...)` — voice retrieval, mapped to the five supported
   questions in §6.3 exactly: *What is overdue?*, *What is due this week?*,
   *What do I have in \<Segment\>?*, *What should I do next?*, *How much did

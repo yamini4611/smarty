@@ -1,23 +1,38 @@
 # Ballast — a personal commitments dashboard
 
-> ### Current build: Smart Life Tracker — calm, card-based, per direct client feedback
+> ### Current build: Smart Life Tracker — a canvas of color-coded segments, plus a guided voice assistant
 >
-> The structure follows the client's UI requirements doc — a **Life
+> The structure still follows the client's UI requirements doc — a **Life
 > Segment → Task** model, four purely date-driven task states (Overdue,
 > Approaching, Pending, Completed), onboarding that asks age range, life
-> stage, and goals — but the visual system was redirected twice on direct
-> feedback after seeing it run. First: warmer, not clinical — **big rounded
-> cards, not thin rows**, a description on every segment, past/done tasks
-> kept visible rather than tucked away, a cream-and-sage soft-shadowed
-> palette. Then: each card shows its real next tasks tagged **High / Medium
-> / Low**, not just abstract counts, and every segment card **stays on
-> screen regardless of which filter is selected** — a filter narrows what's
-> previewed inside each box, it never makes the box disappear. Segments now
-> come in three kinds chosen at setup — **Permanent** (a standing part of
-> life), **Routine** (a steady cadence), or **Temporary project** (has an
-> actual end) — and a project gets both a **turtle travelling a
-> start-to-finish path**, driven by tasks completed, and an optional
-> estimated finish date shown right at the end of that path.
+> stage, and goals — and the visual system has now been redirected three
+> times on direct feedback after seeing it run. First: warmer, not clinical
+> — big rounded cards, a cream-and-sage soft-shadowed palette. Then: real
+> next tasks tagged High/Medium/Low instead of abstract counts, with every
+> segment card staying on screen regardless of which filter is selected.
+> Now, per the latest round of feedback:
+>
+> - **A canvas, not a stack.** The dashboard is a two-column grid of small
+>   colored tiles — one per segment, tinted in that segment's own color —
+>   instead of full-width cards, so the whole board reads at a glance like
+>   a wall of color-coded windows.
+> - **Tasks are color-coded by importance**, not just labeled: a small dot
+>   next to every task carries its own priority color (independent of the
+>   overdue/approaching/pending state colors, so "urgent" and "important"
+>   never get visually confused).
+> - **A second, separate assistant button** sits beside the usual **+**
+>   quick-add — a voice-guide that has an actual back-and-forth: say (or
+>   type) "add finish amazon application today," and it proposes which
+>   segment that belongs under, waits for you to confirm or correct it,
+>   then asks for a priority level, before it ever saves anything.
+> - **The turtle stays** — a temporary project still gets its start-to-
+>   finish progress path, now with a compact version that fits inside a
+>   tile as well as the full one in segment detail.
+> - **One-tap reset.** Since this is a build for repeated test runs, a
+>   "Start over" control in Settings wipes the current run and drops you
+>   back at Welcome — no confirmation dialog — and a real sign-in
+>   afterward now lands on genuine onboarding instead of silently
+>   re-seeding the sample data.
 >
 > - **App:** [`prototype/tracker.html`](prototype/tracker.html) — all eight
 >   core screens plus the Upcoming/Completed/Settings tabs, working end to

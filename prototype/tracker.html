@@ -20,6 +20,11 @@
     --pending-tint: #efeade;
     --done: #6e9075;
     --done-tint: #e8efe6;
+    --pri-high: #c1613f;
+    --pri-med: #b98a2e;
+    --pri-low: #8c8471;
+    --assistant: #8878b0;
+    --assistant-deep: #6d5f94;
     --rule: #eee6d8;
     --rule-hard: #e6dbc7;
     --edge: #ddd0b8;
@@ -105,6 +110,25 @@
   .segcard-more { font-size: 11.5px; color: var(--faint); font-weight: 600; }
   .segcard-empty { font-size: 12.5px; color: var(--faint); font-style: italic; }
 
+  /* The dashboard as a canvas — segments as small colored tiles in a grid,
+     not one long column. Each tile carries its own segment color, and
+     priority reads as a color, not a label. */
+  .canvas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; margin-top: 6px; }
+  .seg-tile { position: relative; display: flex; flex-direction: column; text-align: left; border-radius: 20px; padding: 14px 14px 15px; box-shadow: var(--shadow-sm); min-height: 150px; }
+  .seg-tile:active { box-shadow: none; transform: translateY(1px); }
+  .seg-tile-icon { width: 32px; height: 32px; border-radius: 10px; background: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; font-size: 15px; flex: none; }
+  .seg-tile-name { font-family: var(--display); font-size: 14.5px; font-weight: 700; margin-top: 9px; line-height: 1.25; }
+  .seg-tile-badge { display: inline-block; margin-top: 3px; font-size: 8.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 7px; border-radius: 20px; background: rgba(255,255,255,0.55); }
+  .seg-tile-alert { position: absolute; top: 12px; right: 12px; width: 9px; height: 9px; border-radius: 50%; background: var(--overdue); box-shadow: 0 0 0 2px rgba(255,255,255,0.7); }
+  .seg-tile-tasks { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .seg-tile-task { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .seg-tile-task-title { font-size: 11.5px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .seg-tile-empty { font-size: 11px; color: var(--dim); font-style: italic; margin-top: 10px; }
+  .seg-tile-more { font-size: 10.5px; color: var(--dim); font-weight: 700; margin-top: 1px; }
+  .pri-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+  .seg-tile-add { align-items: center; justify-content: center; gap: 6px; background: transparent; border: 1.5px dashed var(--edge); box-shadow: none; color: var(--accent); font-size: 12.5px; font-weight: 700; }
+  .seg-tile-add:active { background: var(--paper); }
+
   /* Simple rows — used in sheets and onboarding lists, not the dashboard's own cards */
   .segrow { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--rule); width: 100%; }
   .segrow:active { background: rgba(110,144,117,0.06); }
@@ -167,6 +191,16 @@
   .box { background: var(--accent-tint); border-radius: 16px; padding: 14px 16px; }
   .fab { position: absolute; right: 18px; bottom: calc(78px + env(safe-area-inset-bottom, 0px)); width: 54px; height: 54px; border-radius: 27px; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(110,144,117,0.45); z-index: 10; }
   .fab:active { background: var(--accent-deep); }
+  .fab-guide { position: absolute; right: 84px; bottom: calc(78px + env(safe-area-inset-bottom, 0px)); width: 54px; height: 54px; border-radius: 27px; background: var(--assistant); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(136,120,176,0.45); z-index: 10; }
+  .fab-guide:active { background: var(--assistant-deep); }
+
+  /* The guide screen — a lightweight chat with the assistant, one question
+     at a time, rather than a form dumped on you all at once. */
+  .guide-msg { display: flex; gap: 10px; margin-top: 16px; align-items: flex-start; }
+  .guide-avatar { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--assistant); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .guide-bubble { background: var(--card); border-radius: 4px 16px 16px 16px; padding: 12px 15px; box-shadow: var(--shadow-sm); font-size: 14px; line-height: 1.5; max-width: 84%; }
+  .guide-you { display: flex; justify-content: flex-end; margin-top: 12px; }
+  .guide-you-bubble { background: var(--accent); color: #fff; border-radius: 16px 4px 16px 16px; padding: 10px 15px; font-size: 13.5px; max-width: 84%; }
 
   .nav { flex: none; background: var(--paper); border-top: 1px solid var(--rule-hard); display: grid; grid-template-columns: repeat(4, 1fr); padding-bottom: env(safe-area-inset-bottom, 0px); }
   .nav button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 11px 4px 10px; }
@@ -185,6 +219,14 @@
   .turtle-caption { display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 700; color: var(--faint); letter-spacing: 0.03em; text-transform: uppercase; margin-top: 2px; gap: 6px; }
   .turtle-caption span:last-child { text-align: right; }
   .turtle-eta { font-size: 11.5px; color: var(--dim); margin-top: 2px; font-weight: 600; }
+  .turtle-wrap.mini { margin-top: 8px; }
+  .turtle-wrap.mini .turtle-track { height: 20px; margin-top: 2px; }
+  .turtle-wrap.mini .turtle-path { left: 8px; right: 8px; }
+  .turtle-wrap.mini .turtle-post { width: 6px; height: 6px; }
+  .turtle-wrap.mini .turtle-post.start { left: 5px; }
+  .turtle-wrap.mini .turtle-post.finish { right: 5px; }
+  .turtle-wrap.mini .turtle-icon { font-size: 15px; }
+  .turtle-wrap.mini .turtle-pct { font-size: 10.5px; font-weight: 700; color: var(--dim); margin-top: 1px; }
 </style>
 <div id="phone"><div id="root"></div></div>
 <script>
@@ -267,7 +309,8 @@
     integration: { status: 'disconnected' },
     segments: [],
     tasks: [],
-    search: ''
+    search: '',
+    guide: null   // the voice assistant's one-task-at-a-time conversation; see newGuide()
   };
 
   // ---------------------------------------------------------------- persistence
@@ -435,11 +478,7 @@
     }).join('') + '</div>';
   }
 
-  function priorityFlag(p) {
-    if (p === 'high') return '<span class="flag" style="background:var(--overdue)"></span>';
-    if (p === 'low') return '<span class="flag" style="background:var(--faint)"></span>';
-    return '<span class="flag" style="background:transparent"></span>';
-  }
+  function priorityFlag(p) { return '<span class="flag" style="background:' + priorityColor(p) + '" title="' + priorityWord(p) + ' priority"></span>'; }
 
   function taskRow(t, opts) {
     opts = opts || {};
@@ -461,7 +500,7 @@
 
   // The turtle: a temporary project's own start-to-finish path. Position is
   // how much of the project's tasks are done — slow and steady, not a race.
-  function turtleTrack(s) {
+  function turtleTrack(s, mini) {
     var total = s.overdue + s.approaching + s.pending + s.completed;
     var pct = total ? Math.round(100 * s.completed / total) : 0;
     var pos = Math.max(6, Math.min(94, pct));
@@ -472,34 +511,39 @@
       if (n === 0) return 'Aiming to finish today';
       return 'Aiming to finish in ' + n + 'd';
     })() : '';
-    return '<div class="turtle-wrap">' +
-      '<div class="turtle-caption"><span>Start</span><span>' + pct + '% of the way there</span><span>' + finishLabel + '</span></div>' +
-      '<div class="turtle-track">' +
+    var track = '<div class="turtle-track">' +
         '<div class="turtle-path"></div>' +
         '<div class="turtle-post start"></div>' +
         '<div class="turtle-post finish"></div>' +
         '<div class="turtle-icon" style="left:' + pos + '%">🐢</div>' +
-      '</div>' +
+      '</div>';
+    if (mini) {
+      return '<div class="turtle-wrap mini">' + track + '<div class="turtle-pct">' + pct + '% · ' + finishLabel + '</div></div>';
+    }
+    return '<div class="turtle-wrap">' +
+      '<div class="turtle-caption"><span>Start</span><span>' + pct + '% of the way there</span><span>' + finishLabel + '</span></div>' +
+      track +
       (etaNote ? '<div class="turtle-eta">' + etaNote + '</div>' : '') +
     '</div>';
   }
 
   var PRIORITY_WORD = { high: 'High', low: 'Low' };
   function priorityWord(p) { return PRIORITY_WORD[p] || 'Medium'; }
-  function priorityColor(p) { return p === 'high' ? 'var(--overdue)' : p === 'low' ? 'var(--faint)' : 'var(--pending)'; }
+  function priorityColor(p) { return p === 'high' ? 'var(--pri-high)' : p === 'low' ? 'var(--pri-low)' : 'var(--pri-med)'; }
+  function priorityDot(p) { return '<span class="pri-dot" style="background:' + priorityColor(p) + '" title="' + priorityWord(p) + ' priority" aria-label="' + priorityWord(p) + ' priority"></span>'; }
 
-  // What a segment's card shows isn't just counts — it's the actual next
-  // tasks, each tagged by priority, so the box reads as work to do, not an
-  // abstract number. `filter` narrows which state's tasks are previewed
-  // without ever hiding the card itself.
-  function taskPreview(s, filter, limit) {
+  // What a tile shows isn't just a count — it's the actual next tasks, each
+  // color-coded by priority so it reads at a glance, not an abstract number.
+  // `filter` narrows which state's tasks are previewed without ever hiding
+  // the tile itself.
+  function tileTasks(s, filter, limit) {
     if (filter === 'completed') {
       var done = S.tasks.filter(function (t) { return t.segment_id === s.id && t.status === 'completed'; })
         .sort(function (a, b) { return new Date(b.completed_at || 0) - new Date(a.completed_at || 0); });
-      if (!done.length) return '<div class="segcard-empty">Nothing completed here yet.</div>';
-      return done.slice(0, limit).map(function (t) {
-        return '<div class="segcard-task"><span class="segcard-task-title done">' + esc(t.title) + '</span></div>';
-      }).join('') + (done.length > limit ? '<div class="segcard-more">+' + (done.length - limit) + ' more</div>' : '');
+      if (!done.length) return '<div class="seg-tile-empty">Nothing done yet.</div>';
+      return '<div class="seg-tile-tasks">' + done.slice(0, limit).map(function (t) {
+        return '<div class="seg-tile-task"><span class="seg-tile-task-title" style="text-decoration:line-through;color:var(--faint)">' + esc(t.title) + '</span></div>';
+      }).join('') + (done.length > limit ? '<div class="seg-tile-more">+' + (done.length - limit) + ' more</div>' : '') + '</div>';
     }
     var open = S.tasks.filter(function (t) { return t.segment_id === s.id && t.status === 'open'; });
     if (filter && filter !== 'all') open = open.filter(function (t) { return taskState(t) === filter; });
@@ -511,33 +555,29 @@
     });
     if (!open.length) {
       var word = filter && filter !== 'all' ? filter : null;
-      return '<div class="segcard-empty">' + (word ? 'Nothing ' + word + ' here.' : 'Nothing open — add a task whenever you’re ready.') + '</div>';
+      return '<div class="seg-tile-empty">' + (word ? 'Nothing ' + word + '.' : 'All clear — add a task') + '</div>';
     }
     var shown = open.slice(0, limit);
     var rows = shown.map(function (t) {
-      return '<div class="segcard-task"><span class="segcard-task-title">' + esc(t.title) + '</span>' +
-        '<span class="segcard-task-pri" style="color:' + priorityColor(t.priority) + '">' + priorityWord(t.priority) + '</span></div>';
+      return '<div class="seg-tile-task">' + priorityDot(t.priority) + '<span class="seg-tile-task-title">' + esc(t.title) + '</span></div>';
     }).join('');
     var more = open.length - shown.length;
-    return rows + (more > 0 ? '<div class="segcard-more">+' + more + ' more</div>' : '');
+    return '<div class="seg-tile-tasks">' + rows + (more > 0 ? '<div class="seg-tile-more">+' + more + ' more</div>' : '') + '</div>';
   }
 
-  function segmentCard(s, filter) {
+  // The dashboard as a canvas: each segment is its own small colored tile,
+  // not a row in a list. Color says which segment; a dot says how urgent.
+  function segTile(s, filter) {
     var kind = kindOf(s);
     var meta = KIND_META[kind];
-    return '<button class="segcard" data-act="open-segment" data-v="' + s.id + '">' +
-      '<div class="segcard-head">' +
-        '<div class="segcard-icon" style="background:' + segTint(s.color) + '">' + segEmoji(s) + '</div>' +
-        '<div style="flex:1;min-width:0">' +
-          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
-            '<div class="segcard-name">' + esc(s.name) + '</div>' +
-            (meta.label ? '<span class="segcard-badge" style="background:' + meta.badgeBg + ';color:' + meta.badgeFg + '">' + meta.label + '</span>' : '') +
-          '</div>' +
-          (s.description ? '<div class="segcard-desc">' + esc(s.description) + '</div>' : '') +
-        '</div>' +
-      '</div>' +
-      (kind === 'project' ? turtleTrack(s) : '') +
-      '<div class="segcard-tasks">' + taskPreview(s, filter, kind === 'project' ? 2 : 3) + '</div>' +
+    var hasAlert = s.overdue > 0;
+    return '<button class="seg-tile" style="background:' + segTint(s.color) + '" data-act="open-segment" data-v="' + s.id + '">' +
+      (hasAlert ? '<span class="seg-tile-alert"></span>' : '') +
+      '<div class="seg-tile-icon">' + segEmoji(s) + '</div>' +
+      '<div class="seg-tile-name">' + esc(s.name) + '</div>' +
+      (meta.label ? '<span class="seg-tile-badge" style="color:' + meta.badgeFg + '">' + meta.label + '</span>' : '') +
+      (kind === 'project' ? turtleTrack(s, true) : '') +
+      tileTasks(s, filter, kind === 'project' ? 2 : 3) +
     '</button>';
   }
 
@@ -695,6 +735,82 @@
   function newDraftTask(segmentId) {
     return { id: null, segment_id: segmentId || (activeSegments()[0] || {}).id || null, title: '', notes: '', due_at: null, noDeadlineChosen: false, priority: 'normal', reminder: null, calendarExport: false };
   }
+
+  function newGuide() {
+    return { step: 'listen', heard: '', title: '', segmentId: null, segmentGuess: null, priority: null, date: null, dateGuess: null, followUp: null, alt: null, createdTitle: '', createdSegment: '' };
+  }
+
+  // ---------------------------------------------------------------- the voice guide
+  // A conversation, one question at a time, rather than a form dumped on you
+  // all at once: hears a task, guesses a segment and checks it with you,
+  // then asks for a priority — never saves without both.
+  SCREENS['voice-guide'] = function () {
+    var g = S.guide || (S.guide = newGuide());
+    var body = '';
+
+    if (g.step === 'listen') {
+      body =
+        '<div class="guide-msg"><div class="guide-avatar">' + svg(IC.mic, 15, '#fff', 2.2) + '</div>' +
+          '<div class="guide-bubble">Tell me what you need to add — I’ll figure out where it goes and check with you before saving anything.</div>' +
+        '</div>' +
+        '<div class="label" style="margin-top:22px;color:' + (S.listening ? 'var(--overdue)' : 'var(--faint)') + '">' + (S.listening ? 'LISTENING…' : 'TYPE OR TAP THE MIC') + '</div>' +
+        '<textarea class="type-in" id="guide-in" rows="3" placeholder="e.g. finish the Amazon application today" style="margin-top:8px">' + esc(S.draft || '') + '</textarea>';
+    } else if (g.step === 'confirm-segment') {
+      var guess = g.segmentGuess ? segmentById(g.segmentGuess) : null;
+      body =
+        '<div class="guide-you"><div class="guide-you-bubble">“' + esc(g.heard) + '”</div></div>' +
+        '<div class="guide-msg"><div class="guide-avatar">' + svg(IC.mic, 15, '#fff', 2.2) + '</div>' +
+          '<div class="guide-bubble">' + (guess
+            ? 'Got it — “' + esc(g.title) + '.” I think that’s ' + dot(guess.color, 8) + ' <b>' + esc(guess.name) + '</b> — is that right?'
+            : 'Got it — “' + esc(g.title) + '.” Which segment should that go under?') + '</div>' +
+        '</div>' +
+        '<div class="pillrow" style="margin-top:14px;padding-left:44px">' +
+          (guess ? '<button class="opt" style="background:var(--accent);border-color:var(--accent);color:#fff" data-act="guide-pick-segment" data-v="' + guess.id + '">Yes, ' + esc(guess.name) + '</button>' : '') +
+          activeSegments().filter(function (s) { return !guess || s.id !== guess.id; }).map(function (s) {
+            return '<button class="opt" data-act="guide-pick-segment" data-v="' + s.id + '">' + esc(s.name) + '</button>';
+          }).join('') +
+        '</div>';
+    } else if (g.step === 'confirm-priority') {
+      var seg = segmentById(g.segmentId);
+      body =
+        '<div class="guide-msg"><div class="guide-avatar">' + svg(IC.mic, 15, '#fff', 2.2) + '</div>' +
+          '<div class="guide-bubble">Filed under ' + dot(seg.color, 8) + ' <b>' + esc(seg.name) + '</b>. How important is this — high, medium, or low?</div>' +
+        '</div>' +
+        '<div class="pillrow" style="margin-top:14px;padding-left:44px">' +
+          ['high', 'normal', 'low'].map(function (p) {
+            return '<button class="opt" style="border-color:' + priorityColor(p) + ';color:' + priorityColor(p) + '" data-act="guide-pick-priority" data-v="' + p + '">' + priorityWord(p) + '</button>';
+          }).join('') +
+        '</div>';
+    } else if (g.step === 'confirm-date') {
+      body =
+        '<div class="guide-msg"><div class="guide-avatar">' + svg(IC.mic, 15, '#fff', 2.2) + '</div>' +
+          '<div class="guide-bubble">One more thing — ' + esc(g.followUp) + '</div>' +
+        '</div>' +
+        '<div class="pillrow" style="margin-top:14px;padding-left:44px">' +
+          '<button class="opt" data-act="guide-confirm-date" data-v="near">Yes, that one</button>' +
+          (g.alt ? '<button class="opt" data-act="guide-confirm-date" data-v="alt">The one after</button>' : '') +
+          '<button class="opt" data-act="guide-confirm-date" data-v="none">Never mind, no deadline</button>' +
+        '</div>';
+    } else if (g.step === 'done') {
+      body =
+        '<div class="guide-msg"><div class="guide-avatar">' + svg(IC.check, 15, '#fff', 2.6) + '</div>' +
+          '<div class="guide-bubble">Added “' + esc(g.createdTitle) + '” to <b>' + esc(g.createdSegment) + '</b>, ' + priorityWord(g.priority).toLowerCase() + ' priority. Anything else?</div>' +
+        '</div>';
+    }
+
+    return backHeader('Assistant', 'go', 'dashboard') +
+      '<div class="scroll pad-bottom">' + body + '</div>' +
+      '<div class="foot">' +
+        (g.step === 'listen' ? '<div style="display:flex;gap:10px">' +
+          '<button class="btn btn-outline" data-act="mic" style="flex:none;width:50px;display:flex;align-items:center;justify-content:center;padding:0">' + svg(IC.mic, 18, S.listening ? 'var(--overdue)' : 'var(--ink)') + '</button>' +
+          '<button class="btn btn-primary" data-act="guide-submit" style="flex:1">Send</button>' +
+        '</div>' : '') +
+        (g.step === 'done' ? '<div style="display:flex;gap:10px">' +
+          '<button class="btn btn-outline" data-act="guide-again" style="flex:1">Add another</button>' +
+          '<button class="btn btn-primary" data-act="go" data-v="dashboard" style="flex:1">Done</button>' +
+        '</div>' : '') +
+      '</div>';
+  };
 
   SCREENS['add-task'] = function () {
     if (S.captureFlow === 'listen') return captureListenScreen();
@@ -935,10 +1051,13 @@
         }).join('') +
       '</div>' +
       '<div class="scroll pad-bottom">' +
-        (shown.length ? shown.map(function (s) { return segmentCard(s, S.filter); }).join('') : '<p class="empty-note">No active segments yet.</p>') +
-        '<button class="segrow" data-act="new-segment-quick" style="color:var(--accent)">' + svg(IC.plus, 15, 'var(--accent)') + '<span class="task-title" style="color:var(--accent)">Add segment</span></button>' +
+        '<div class="canvas-grid">' +
+          shown.map(function (s) { return segTile(s, S.filter); }).join('') +
+          '<button class="seg-tile seg-tile-add" data-act="new-segment-quick">' + svg(IC.plus, 22, 'var(--accent)', 2.2) + '<span>Add segment</span></button>' +
+        '</div>' +
       '</div>' +
-      '<button class="fab" data-act="go" data-v="add-task">' + svg(IC.plus, 22, '#fff', 2.2) + '</button>' +
+      '<button class="fab-guide" data-act="go" data-v="voice-guide" aria-label="Ask the assistant to add something">' + svg(IC.mic, 21, '#fff', 2) + '</button>' +
+      '<button class="fab" data-act="go" data-v="add-task" aria-label="Add task">' + svg(IC.plus, 22, '#fff', 2.2) + '</button>' +
       navBar() + sheetOverlay() + toastHtml();
   };
 
@@ -1060,6 +1179,11 @@
   SCREENS.settings = function () {
     return '<div class="head"><div class="head-row"><div class="wordmark">Settings</div></div></div>' +
       '<div class="scroll pad-bottom">' +
+        '<div class="box" style="margin-top:4px;display:flex;align-items:center;gap:12px">' +
+          '<div style="flex:1"><div class="task-title" style="font-size:13.5px">Trying out the app?</div>' +
+          '<div class="task-meta" style="margin-top:3px;text-transform:none;letter-spacing:0">One tap wipes this run and puts you back at the welcome screen — for as many test runs as you want.</div></div>' +
+          '<button class="btn btn-outline" data-act="reset-demo" style="width:auto;padding:9px 14px;font-size:12px;white-space:nowrap">Start over</button>' +
+        '</div>' +
         sectionHead('PROFILE') +
         '<div class="field"><div class="field-k">NAME</div><div class="field-v">' + esc(S.user.display_name || '—') + '</div></div>' +
         '<div class="field"><div class="field-k">EMAIL</div><div class="field-v">' + esc(S.user.email || '—') + '</div></div>' +
@@ -1242,6 +1366,7 @@
       if (val('task-notes-in') !== undefined) S.draft.notes = val('task-notes-in');
     }
     if (S.captureFlow === 'listen' && val('capture-in') !== undefined) S.draft = val('capture-in');
+    if (S.screen === 'voice-guide' && val('guide-in') !== undefined) S.draft = val('guide-in');
     if (S.screen === 'onboard-capture' && val('onboard-say-in') !== undefined) S.draft = val('onboard-say-in');
     if (S.screen === 'choose-segments') {
       if (val('custom-segment-in') !== undefined) S.customSegment = val('custom-segment-in');
@@ -1282,6 +1407,7 @@
         S.captureFlow = null;
         S.tabBefore = S.openSegmentId ? 'segment-detail' : S.screen;
       }
+      if (v === 'voice-guide') { S.guide = newGuide(); S.draft = ''; }
       if (v === 'dashboard') S.openSegmentId = null;
       go(v);
     },
@@ -1523,6 +1649,12 @@
       var after = function () { try { localStorage.removeItem(KEY); } catch (e) {} location.reload(); };
       if (API) call('DELETE', '/api/account').then(after); else after();
     },
+    'reset-demo': function () {
+      // One tap, no confirm() — this screen exists so a tester can wipe and
+      // re-run the whole flow repeatedly, not to gate a rare destructive act.
+      var after = function () { try { localStorage.removeItem(KEY); } catch (e) {} location.reload(); };
+      if (API) call('DELETE', '/api/account').then(after); else after();
+    },
 
     'speak-answer': function () {
       if (!S.answerData || S.settings.privateMode && S.answerData.ids && S.answerData.ids.length) {
@@ -1584,8 +1716,63 @@
         if (S.proposals.length) { toast('Saved. One still needs an answer.'); render(); }
         else { toast('Saved ' + count(pending.length, 'task', 'tasks') + '.'); S.captureFlow = null; go(S.openSegmentId ? 'segment-detail' : (S.tabBefore || 'dashboard')); }
       });
-    }
+    },
+
+    'guide-submit': function () {
+      syncFields();
+      var text = (S.draft || '').trim();
+      if (!text) return;
+      var g = S.guide;
+      g.heard = text;
+      var afterParse = function (p) {
+        g.title = p.title;
+        g.segmentGuess = p.segmentId || null;
+        g.date = p.date || null;
+        g.followUp = p.followUp || null;
+        g.alt = p.alt || null;
+        g.step = 'confirm-segment';
+        S.draft = '';
+        render();
+      };
+      if (API) {
+        call('POST', '/api/assistant/parse', { text: text, today: isoOf(TODAY) })
+          .then(function (r) { afterParse((r.proposals || [])[0] || { title: text }); })
+          .catch(function () { afterParse(localParseClause(text, 0)); });
+      } else {
+        afterParse(localParseClause(text, 0));
+      }
+    },
+    'guide-pick-segment': function (v) { S.guide.segmentId = v; S.guide.step = 'confirm-priority'; render(); },
+    'guide-pick-priority': function (v) {
+      var g = S.guide;
+      g.priority = v;
+      if (g.followUp) { g.step = 'confirm-date'; render(); return; }
+      createGuideTask();
+    },
+    'guide-confirm-date': function (v) {
+      var g = S.guide;
+      if (v === 'alt' && g.alt) g.date = g.alt;
+      if (v === 'none') g.date = null;
+      g.followUp = null;
+      createGuideTask();
+    },
+    'guide-again': function () { S.guide = newGuide(); S.draft = ''; render(); }
   };
+
+  function createGuideTask() {
+    var g = S.guide;
+    var seg = segmentById(g.segmentId);
+    var payload = { segment_id: g.segmentId, title: g.title, due_at: g.date || null, priority: g.priority || 'normal' };
+    var after = function () {
+      g.createdTitle = g.title;
+      g.createdSegment = seg ? seg.name : '';
+      g.step = 'done';
+      saveLocal();
+      render();
+    };
+    if (API) call('POST', '/api/tasks', payload).then(function (t) { S.tasks.push(t); }).then(after);
+    else { S.tasks.push(Object.assign({ id: newId('t'), notes: '', status: 'open', reminder: null, calendar_event_id: null, completed_at: null, created_at: new Date().toISOString() }, payload)); after(); }
+  }
 
   // ---------------------------------------------------------------- voice
   var rec = null;

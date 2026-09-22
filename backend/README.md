@@ -21,6 +21,14 @@ seventeen tasks — overdue, approaching, pending, and completed — so the
 dashboard is legible the moment it loads, and the turtle has real progress
 to show.
 
+The seeded demo is only ever planted automatically on the server's very
+first boot against an empty database file. After that, **"Start over" in
+Settings** (or `DELETE /api/account` directly) wipes the account and the
+next sign-in gets a genuinely blank one — no segments, no tasks — so
+onboarding is actually re-testable, not just a re-seed of the same sample
+data. This is meant for exactly that: a tester who wants to run through the
+whole flow repeatedly, not a one-time reset.
+
 ## The data model
 
 `schema.sql` implements the six entities from the client requirements doc,
@@ -81,8 +89,8 @@ input/output contract — the shape the client consumes doesn't change.
 | | |
 |---|---|
 | `GET /api/health` | `{ trackerApp: true }` — how the page detects a backend |
-| `POST /api/auth/sign-in` / `POST /api/auth/sign-out` | mock session (single demo user) |
-| `DELETE /api/account` | wipes everything, per FR1 |
+| `POST /api/auth/sign-in` / `POST /api/auth/sign-out` | mock session (single demo user); if no account exists yet it creates a blank one, never a reseed |
+| `DELETE /api/account` | wipes everything, per FR1 — pairs with "Start over" in Settings for repeat test runs |
 | `PUT /api/profile` | age range, life stage, goals |
 | `GET/POST /api/segments`, `GET/PATCH/DELETE /api/segments/:id` | segment CRUD |
 | `POST /api/segments/:id/archive` / `.../restore` / `.../hide` / `.../show` | FR5 |

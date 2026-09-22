@@ -4,10 +4,12 @@ This walks the eight core screens defined in the client UI requirements
 doc, in the order a real person moves through them: onboarding once, then
 the daily loop after. It describes `prototype/tracker.html` exactly as
 built — a warm, calm visual system on top of the same task-first structure:
-big rounded cards instead of thin rows, a cream background, soft shadows
-instead of hard borders, and a rounded display face (Quicksand/Nunito) —
-built to feel inviting rather than clinical, while still making overdue
-work impossible to miss.
+a cream background, soft shadows instead of hard borders, and a rounded
+display face (Quicksand/Nunito) — built to feel inviting rather than
+clinical, while still making overdue work impossible to miss. The
+dashboard itself reads as a **canvas**: every segment is its own small,
+color-tinted tile in a grid, not a stacked full-width card, so the whole
+board is legible as a wall of color at a glance.
 
 Try it hands-on at the shared link, or run `node backend/server.js` and open
 `http://localhost:4000` — see the main [README](../README.md) for both.
@@ -62,20 +64,34 @@ segment exists.
 bell, and a profile avatar. Below that: a soft stat card (Overdue,
 Approaching, Pending, Done this week), then filter chips (`All` /
 `Overdue` / `Approaching` / `Pending` / `Completed`), then every active
-segment as its own big rounded card — an icon, its name, its kind badge
-(`Project` or `Routine`; a permanent segment carries none, to keep it
-visually quiet), the description you gave it, and — the actual point of the
-card — a short list of its real next tasks, each tagged **High**, **Medium**,
-or **Low**, not just an abstract count. A project's card also shows a small
-turtle on a dashed path from **Start** to a **Finish** marker labelled with
-its estimated date if you set one, positioned by how much of its work is
-done. **Every segment stays on screen no matter which filter chip is
-selected** — a filter only narrows which tasks show in each card's preview
-(a card with nothing matching says so — "Nothing overdue here" — rather
-than disappearing), so the boxes stay a stable, calm anchor of the screen.
-A persistent circular **＋** button opens quick add from here or from
-Upcoming, by typing or speaking, exactly as the doc's "global quick-add...
-from any dashboard state" asks for.
+segment as its own small tile in a **two-column canvas grid**, tinted in
+that segment's own color — an icon, its name, its kind badge (`Project` or
+`Routine`; a permanent segment carries none, to keep it visually quiet),
+and — the actual point of the tile — a short list of its real next tasks,
+each carrying a small **colored dot for its priority** (high/medium/low
+each get their own color, independent of the overdue/approaching/pending
+state colors, so urgency and importance never blur together) next to its
+title. A project's tile also shows a compact turtle on a dashed path,
+positioned by how much of its work is done, with the percent and its
+estimated finish date underneath. **Every segment stays on screen no
+matter which filter chip is selected** — a filter only narrows which
+tasks show in each tile's preview (a tile with nothing matching says so —
+"Nothing overdue here" — rather than disappearing), so the grid stays a
+stable, calm anchor of the screen. A dashed tile at the end of the grid is
+always "Add segment."
+>
+> Two floating buttons sit over the grid: a persistent circular **＋**
+> opens quick add — the same manual form as before, from here or from
+> Upcoming, by typing or speaking, exactly as the doc's "global quick-add...
+> from any dashboard state" asks for — and, beside it, a second **voice-
+> guide** button (a mic icon on its own tinted circle) that opens a
+> different, conversational flow: it takes what you say or type in one
+> shot ("add finish amazon application today"), proposes which segment it
+> thinks that belongs under, and waits for you to confirm or pick a
+> different one; then it asks for a priority level; then, only if the
+> phrasing was genuinely date-ambiguous, confirms which date you meant —
+> and only after all of that does it actually create the task. Nothing is
+> saved until every step is confirmed.
 
 **8 · Segment detail** — tap any segment card to land here: the same card,
 larger, with its full description, kind badge, and (for a project) the same
@@ -94,11 +110,14 @@ Completed, and Settings":
 - **Upcoming** — every open task across all segments, grouped Overdue /
   Approaching / Pending.
 - **Completed** — this week's finished tasks, then everything earlier.
-- **Settings** — profile and age range, the default reminder and
-  notification permission, voice preferences (read answers aloud, and a
-  private mode that keeps individual task details out of anything spoken),
-  calendar connection, and data controls (view your data as JSON, sign out,
-  delete the account).
+- **Settings** — a "Start over" control at the very top, one tap and no
+  confirmation dialog, that wipes the current run and returns to Welcome —
+  meant for testers doing repeated run-throughs, not a rare destructive
+  act; then profile and age range, the default reminder and notification
+  permission, voice preferences (read answers aloud, and a private mode
+  that keeps individual task details out of anything spoken), calendar
+  connection, and data controls (view your data as JSON, sign out, delete
+  the account).
 
 The **＋** quick-add also answers direct questions in place — "what's
 overdue?", "what should I do next?" — with the matching tasks listed

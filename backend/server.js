@@ -9,7 +9,7 @@ const http = require('http');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { open, wipe, plant, log, newId } = require('./db.js');
+const { open, wipe, createBlankUser, log, newId } = require('./db.js');
 const { taskState, segmentCounts, daysUntil } = require('./status.js');
 const assistant = require('./assistant.js');
 
@@ -115,7 +115,7 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/health') return json(res, 200, { trackerApp: true });
 
     if (p === '/api/auth/sign-in' && m === 'POST') {
-      if (!getUser()) plant(db, new Date());
+      if (!getUser()) createBlankUser(db, USER_ID, new Date());
       return json(res, 200, getUser());
     }
     if (p === '/api/me') return json(res, 200, getUser() || null);

@@ -38,6 +38,17 @@ function wipe(db) {
   }
 }
 
+// A genuinely blank account — no segments, no tasks — so signing back in
+// after a reset lands on real onboarding instead of the sample data. Only
+// the server's very first boot ever (an empty database) gets the seeded
+// demo automatically; see open() above.
+function createBlankUser(db, userId, today) {
+  db.prepare('INSERT INTO users (id,email,display_name,age_range,life_stage,goals,timezone,preferences,created_at) VALUES (?,?,?,?,?,?,?,?,?)')
+    .run(userId, 'you@example.com', '', null, '[]', '[]', 'Europe/London', '{"reminderDefault":{"mode":"before","offsetDays":1,"atHour":9},"voiceSpoken":false,"privateMode":false}', today.toISOString());
+  db.prepare('INSERT INTO integrations (id,user_id,provider,permission_scope,token_reference,status) VALUES (?,?,?,?,?,?)')
+    .run(newId('ig'), userId, 'google_calendar', 'calendar.events.write', 'mock-token', 'disconnected');
+}
+
 function log(db, userId, entityType, entityId, action) {
   db.prepare('INSERT INTO activity_log (id,user_id,entity_type,entity_id,action,occurred_at) VALUES (?,?,?,?,?,?)')
     .run('a' + Date.now() + Math.random().toString(36).slice(2, 6), userId, entityType, entityId, action, new Date().toISOString());
@@ -47,4 +58,4 @@ function newId(prefix) {
   return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
-module.exports = { open, plant, wipe, log, newId, DB_PATH };
+module.exports = { open, plant, wipe, createBlankUser, log, newId, DB_PATH };

@@ -747,13 +747,19 @@
         '</button>' +
         (list.length ? sectionHead('ADDED', list.length) : '') +
         list.map(function (t, i) {
-          return '<div class="task"><div class="task-body"><div class="task-title">' + esc(t.title) + '</div>' +
-            '<div class="task-meta">' + esc(t.segmentName || 'Unsorted') + (t.date ? ' · ' + t.date : '') + '</div></div>' +
+          return '<div class="task"><div class="task-body" style="flex:1"><div class="task-title">' + esc(t.title) + '</div>' +
+            (t.segment_id ?
+              '<div class="task-meta">' + esc(t.segmentName || '') + (t.date ? ' · ' + t.date : '') + '</div>' :
+              ('<div class="task-meta" style="color:var(--accent)">Choose a segment' + (t.date ? ' · ' + t.date : '') + '</div>' +
+               '<div class="pillrow" style="margin-top:6px">' + activeSegments().map(function (sg) {
+                 return '<button class="opt" data-act="set-draft-task-segment" data-i="' + i + '" data-v="' + sg.id + '">' + esc(sg.name) + '</button>';
+               }).join('') + '</div>')) +
+            '</div>' +
             '<button data-act="remove-draft-task" data-v="' + i + '" class="label" style="color:var(--overdue)">REMOVE</button></div>';
         }).join('') +
       '</div>' +
       '<div class="foot">' +
-        '<button class="btn btn-primary" data-act="finish-onboarding"' + (!list.length ? ' disabled' : '') + '>Go to my dashboard</button>' +
+        '<button class="btn btn-primary" data-act="finish-onboarding"' + (!list.length || list.some(function (t) { return !t.segment_id; }) ? ' disabled' : '') + '>Go to my dashboard</button>' +
       '</div>';
   };
 
@@ -937,7 +943,7 @@
         (!list.length ? '<p class="empty-note">Nothing left to confirm.</p>' : '') +
       '</div>' +
       '<div class="foot">' +
-        '<button class="btn btn-primary" data-act="accept-all-proposals"' + (!list.length ? ' disabled' : '') + '>Save ' + count(list.length, 'task', 'tasks') + '</button>' +
+        '<button class="btn btn-primary" data-act="accept-all-proposals"' + (!list.length || list.some(function (pr) { return !pr.followUp && !pr.segmentId; }) ? ' disabled' : '') + '>Save ' + count(list.length, 'task', 'tasks') + '</button>' +
       '</div>';
   }
 
@@ -1518,12 +1524,21 @@
       else afterParse(localParseTaskList(text));
     },
     'remove-draft-task': function (v) { (S.draftTasks || []).splice(+v, 1); render(); },
+    'set-draft-task-segment': function (v, el) {
+      var i = +el.getAttribute('data-i');
+      var sg = segmentById(v);
+      var t = (S.draftTasks || [])[i];
+      if (t && sg) { t.segment_id = v; t.segmentName = sg.name; render(); }
+    },
     'finish-onboarding': function () {
       var list = S.draftTasks || [];
+      // A task the parser couldn't confidently match must not be silently
+      // dumped into the first segment — every draft task needs a real,
+      // user-picked segment before it becomes a real task.
+      var unresolved = list.filter(function (t) { return !t.segment_id; });
+      if (unresolved.length) { toast('Choose a segment for "' + unresolved[0].title + '" first.'); return; }
       var create = function (t) {
-        var segId = t.segment_id || (activeSegments()[0] || {}).id;
-        if (!segId) return Promise.resolve();
-        var payload = { segment_id: segId, title: t.title, due_at: t.date || null, priority: t.priority || 'normal', reminder: t.reminder };
+        var payload = { segment_id: t.segment_id, title: t.title, due_at: t.date || null, priority: t.priority || 'normal', reminder: t.reminder };
         if (API) return call('POST', '/api/tasks', payload).then(function (nt) { S.tasks.push(nt); });
         S.tasks.push(Object.assign({ id: newId('t'), notes: '', status: 'open', calendar_event_id: null, completed_at: null, created_at: new Date().toISOString() }, payload));
         return Promise.resolve();
@@ -1769,10 +1784,14 @@
     },
     'accept-all-proposals': function () {
       var pending = S.proposals.filter(function (pr) { return !pr.followUp; });
+      // Same rule as onboarding: a proposal the parser couldn't confidently
+      // match must not be silently dumped into the first segment — it was
+      // already shown "Choose a segment →" with a pillrow, so require an
+      // actual tap before it becomes a real task.
+      var unresolved = pending.filter(function (pr) { return !pr.segmentId; });
+      if (unresolved.length) { toast('Choose a segment for "' + unresolved[0].title + '" first.'); return; }
       var create = function (pr) {
-        var segId = pr.segmentId || (activeSegments()[0] || {}).id;
-        if (!segId) return Promise.resolve();
-        var payload = { segment_id: segId, title: pr.title, due_at: pr.date || null, priority: pr.priority || 'normal', reminder: pr.reminder };
+        var payload = { segment_id: pr.segmentId, title: pr.title, due_at: pr.date || null, priority: pr.priority || 'normal', reminder: pr.reminder };
         if (API) return call('POST', '/api/tasks', payload).then(function (t) { S.tasks.push(t); });
         S.tasks.push(Object.assign({ id: newId('t'), notes: '', status: 'open', calendar_event_id: null, completed_at: null, created_at: new Date().toISOString() }, payload));
         return Promise.resolve();

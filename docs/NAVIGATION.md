@@ -52,8 +52,15 @@ chosen right here:
 once, comma-separated or joined with "and": "pay the electricity bill
 tomorrow, book dentist visit." Each becomes an editable task in the list
 below; deadline and reminder stay optional exactly as required, and an
-ambiguous date is kept undated rather than guessed. `Go to my dashboard`
-finishes onboarding once at least one task exists.
+ambiguous date is kept undated rather than guessed. Which segment a task
+lands in is decided by matching words from your segment names against
+what you typed — "pay the electricity bill" matches "Home" because it
+shares a word with a segment named that; "apply for fellowship" matches
+nothing, since no segment name shares a word with it, so it comes back
+**"Choose a segment"** with a row of your segments to tap instead of
+guessing — it is never silently dropped into whichever segment happens
+to be first. `Go to my dashboard` finishes onboarding once at least one
+task exists and every task has a segment.
 
 ## Every day after (returning user)
 

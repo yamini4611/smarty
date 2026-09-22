@@ -139,8 +139,8 @@ const server = http.createServer(async (req, res) => {
       if (m === 'POST') {
         const id = newId('sg');
         const maxOrder = allSegments().reduce((hi, s) => Math.max(hi, s.sort_order), -1);
-        db.prepare('INSERT INTO segments (id,user_id,name,icon,color,sort_order,status,archived_at,created_at) VALUES (?,?,?,?,?,?,?,?,?)')
-          .run(id, USER_ID, inBody.name || 'Untitled', inBody.icon || null, inBody.color || '#3B6FD9', maxOrder + 1, 'active', null, new Date().toISOString());
+        db.prepare('INSERT INTO segments (id,user_id,name,description,icon,color,kind,sort_order,status,archived_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+          .run(id, USER_ID, inBody.name || 'Untitled', inBody.description || '', inBody.icon || null, inBody.color || '#3B6FD9', inBody.kind === 'project' ? 'project' : 'ongoing', maxOrder + 1, 'active', null, new Date().toISOString());
         log(db, USER_ID, 'segment', id, 'created');
         return json(res, 201, decorateSegment(segmentRow(id), tasks));
       }
@@ -169,9 +169,9 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, decorateSegment(segmentRow(sg.id), tasks));
       }
       if (!segMatch[2] && m === 'PATCH') {
-        const fields = { name: sg.name, icon: sg.icon, color: sg.color, sort_order: sg.sort_order };
-        for (const k of ['name', 'icon', 'color', 'sort_order']) if (k in inBody) fields[k] = inBody[k];
-        db.prepare('UPDATE segments SET name=?, icon=?, color=?, sort_order=? WHERE id=?').run(fields.name, fields.icon, fields.color, fields.sort_order, sg.id);
+        const fields = { name: sg.name, description: sg.description, icon: sg.icon, color: sg.color, kind: sg.kind, sort_order: sg.sort_order };
+        for (const k of ['name', 'description', 'icon', 'color', 'kind', 'sort_order']) if (k in inBody) fields[k] = inBody[k];
+        db.prepare('UPDATE segments SET name=?, description=?, icon=?, color=?, kind=?, sort_order=? WHERE id=?').run(fields.name, fields.description, fields.icon, fields.color, fields.kind, fields.sort_order, sg.id);
         log(db, USER_ID, 'segment', sg.id, 'edited');
         return json(res, 200, decorateSegment(segmentRow(sg.id), tasks));
       }

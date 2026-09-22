@@ -1,16 +1,18 @@
 # Ballast — a personal commitments dashboard
 
-> ### Current build: Smart Life Tracker, Todoist-inspired, per the client UI requirements doc
+> ### Current build: Smart Life Tracker — calm, card-based, per direct client feedback
 >
-> The active implementation follows the client's own, more specific UI
-> requirements doc: a **Life Segment → Task** structure (not Project/Task),
-> four purely date-driven task states — Overdue, Approaching, Pending,
-> Completed — instead of a computed per-project status, an onboarding that
-> asks age range, life stage, and goals, and an interface direction that's
-> explicitly "clean, task-first, inspired by Todoist's simplicity and
-> scanability" while keeping its own palette, type, and layout. It
-> supersedes the earlier Project/Task build's information architecture and
-> visual system both.
+> The structure follows the client's UI requirements doc — a **Life
+> Segment → Task** model, four purely date-driven task states (Overdue,
+> Approaching, Pending, Completed), onboarding that asks age range, life
+> stage, and goals — but the visual system was redirected again after the
+> client saw the Todoist-style build and asked for something warmer: **big
+> rounded cards, not thin rows**, a description on every segment, past/done
+> tasks kept visible rather than tucked away, and — for a segment that's a
+> temporary project rather than an ongoing part of life — **a turtle
+> travelling a start-to-finish path** as its progress indicator. The result
+> is a cream-and-sage, soft-shadowed interface meant to feel inviting and
+> calm rather than clinical, while still surfacing what's overdue clearly.
 >
 > - **App:** [`prototype/tracker.html`](prototype/tracker.html) — all eight
 >   core screens plus the Upcoming/Completed/Settings tabs, working end to

@@ -15,9 +15,11 @@ at on an actual screen that size.
 
 State lives in `backend/data.sqlite`, a real SQLite database (Node prints one
 `ExperimentalWarning` about `node:sqlite` on startup — harmless). Delete the
-file to put the demo back to the seeded data in `seed.js`: four segments
-(Work, Home, Health, Finances) with eleven tasks — overdue, approaching,
-pending, and completed — so the dashboard is legible the moment it loads.
+file to put the demo back to the seeded data in `seed.js`: five segments
+(Work, Home, Health, Finances, and a Kitchen Remodel project) with
+seventeen tasks — overdue, approaching, pending, and completed — so the
+dashboard is legible the moment it loads, and the turtle has real progress
+to show.
 
 ## The data model
 
@@ -25,6 +27,13 @@ pending, and completed — so the dashboard is legible the moment it loads.
 §8, as real tables with foreign keys: `users`, `segments`, `tasks`,
 `reminders`, `integrations`, `activity_log`. Every mutating request writes
 an `activity_log` row.
+
+Two fields go beyond the doc's own table, added for the client's follow-up
+design feedback: `segments.description` (shown on its card) and
+`segments.kind` — `'ongoing'` (a standing part of life, never "finishes") or
+`'project'` (a temporary effort with a start and a finish, which gets its
+own turtle progress path on the dashboard and in segment detail, driven by
+`completed / total` tasks in that segment — slow and steady, not a race).
 
 ## The task-state engine
 

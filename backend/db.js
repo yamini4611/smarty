@@ -22,8 +22,8 @@ function plant(db, today) {
   const u = db.prepare('INSERT INTO users (id,email,display_name,age_range,life_stage,goals,timezone,preferences,created_at) VALUES (?,?,?,?,?,?,?,?,?)');
   u.run(user.id, user.email, user.display_name, user.age_range, user.life_stage, user.goals, user.timezone, user.preferences, user.created_at);
 
-  const s = db.prepare('INSERT INTO segments (id,user_id,name,icon,color,sort_order,status,archived_at,created_at) VALUES (?,?,?,?,?,?,?,?,?)');
-  for (const sg of segments) s.run(sg.id, sg.user_id, sg.name, sg.icon, sg.color, sg.sort_order, sg.status, sg.archived_at, sg.created_at);
+  const s = db.prepare('INSERT INTO segments (id,user_id,name,description,icon,color,kind,sort_order,status,archived_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
+  for (const sg of segments) s.run(sg.id, sg.user_id, sg.name, sg.description || '', sg.icon, sg.color, sg.kind || 'ongoing', sg.sort_order, sg.status, sg.archived_at, sg.created_at);
 
   const t = db.prepare('INSERT INTO tasks (id,segment_id,title,notes,due_at,priority,status,reminder,calendar_event_id,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
   for (const tk of tasks) t.run(tk.id, tk.segment_id, tk.title, tk.notes, tk.due_at, tk.priority, tk.status, tk.reminder, tk.calendar_event_id, tk.completed_at, tk.created_at);

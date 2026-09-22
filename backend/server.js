@@ -10,7 +10,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { open, wipe, plant, log, newId } = require('./db.js');
-const { computeProjectStatus, nextTask, effectiveReminder, daysUntil } = require('./status.js');
+const { taskState, segmentCounts, daysUntil } = require('./status.js');
 const assistant = require('./assistant.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -44,34 +44,36 @@ function body(req) {
 }
 
 function getUser() { return db.prepare('SELECT * FROM users WHERE id = ?').get(USER_ID); }
-function allProjects() { return db.prepare('SELECT * FROM projects WHERE user_id = ? ORDER BY created_at').all(USER_ID); }
+function allSegments() { return db.prepare('SELECT * FROM segments WHERE user_id = ? ORDER BY sort_order, created_at').all(USER_ID); }
 function allTasks() {
-  return db.prepare('SELECT tasks.* FROM tasks JOIN projects ON projects.id = tasks.project_id WHERE projects.user_id = ? ORDER BY tasks.created_at').all(USER_ID);
+  return db.prepare('SELECT tasks.* FROM tasks JOIN segments ON segments.id = tasks.segment_id WHERE segments.user_id = ? ORDER BY tasks.created_at').all(USER_ID);
 }
-function projectRow(id) { return db.prepare('SELECT * FROM projects WHERE id = ?').get(id); }
+function segmentRow(id) { return db.prepare('SELECT * FROM segments WHERE id = ?').get(id); }
 function taskRow(id) { return db.prepare('SELECT * FROM tasks WHERE id = ?').get(id); }
 
-function decorateProject(p, tasks, user) {
-  const s = computeProjectStatus(p, tasks, new Date());
-  const next = nextTask(p, tasks);
-  const open = tasks.filter((t) => t.project_id === p.id && t.status === 'open');
-  const done = tasks.filter((t) => t.project_id === p.id && t.status === 'completed');
-  const overdue = open.filter((t) => t.due_at && daysUntil(t.due_at, new Date()) < 0).length;
-  return Object.assign({}, p, {
-    status: s.status, statusReason: s.reason, manualStatus: !!s.manual,
-    nextTask: next ? { id: next.id, title: next.title, due_at: next.due_at } : null,
-    openCount: open.length, doneCount: done.length, overdueCount: overdue,
-    reminder: effectiveReminder({ reminder: p.reminder_default }, { reminder_default: null }, user)
-  });
+function effectiveReminder(task, user) {
+  const parse = (s) => { try { return typeof s === 'string' ? JSON.parse(s) : s; } catch (e) { return null; } };
+  const prefs = parse(user.preferences) || {};
+  return parse(task.reminder) || prefs.reminderDefault || { mode: 'none' };
 }
 
 function decorateTask(t) {
-  const p = projectRow(t.project_id);
+  const now = new Date();
+  const seg = segmentRow(t.segment_id);
   const user = getUser();
   return Object.assign({}, t, {
-    blocked: !!t.blocked,
-    projectName: p ? p.name : null,
-    reminder: effectiveReminder(t, p || {}, user)
+    segmentName: seg ? seg.name : null,
+    segmentColor: seg ? seg.color : null,
+    state: taskState(t, now),
+    reminder: effectiveReminder(t, user)
+  });
+}
+
+function decorateSegment(s, tasks) {
+  const c = segmentCounts(s, tasks, new Date());
+  return Object.assign({}, s, {
+    overdueCount: c.overdue, approachingCount: c.approaching, pendingCount: c.pending, completedCount: c.completed,
+    nextTask: c.nextTask ? { id: c.nextTask.id, title: c.nextTask.title, due_at: c.nextTask.due_at } : null
   });
 }
 
@@ -85,7 +87,7 @@ function servePage(res) {
     const doc = '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n' +
       '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n' +
       '<title>' + title + '</title>\n' +
-      '<style>html,body{height:100%}body{margin:0;background:#fafaf9;-webkit-font-smoothing:antialiased}img{max-width:100%}[hidden]{display:none!important}</style>\n' +
+      '<style>html,body{height:100%}body{margin:0;background:#fafafa;-webkit-font-smoothing:antialiased}img{max-width:100%}[hidden]{display:none!important}</style>\n' +
       '</head>\n<body>\n' + (t ? html.replace(t[0], '') : html) + '\n</body>\n</html>';
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(doc);
@@ -119,54 +121,70 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/me') return json(res, 200, getUser() || null);
     if (p === '/api/auth/sign-out' && m === 'POST') return json(res, 200, { ok: true });
     if (p === '/api/account' && m === 'DELETE') { wipe(db); return json(res, 200, { ok: true }); }
+    if (p === '/api/profile' && m === 'PUT') {
+      const u = getUser();
+      const fields = {
+        age_range: 'age_range' in inBody ? inBody.age_range : u.age_range,
+        life_stage: 'life_stage' in inBody ? JSON.stringify(inBody.life_stage) : u.life_stage,
+        goals: 'goals' in inBody ? JSON.stringify(inBody.goals) : u.goals
+      };
+      db.prepare('UPDATE users SET age_range=?, life_stage=?, goals=? WHERE id=?').run(fields.age_range, fields.life_stage, fields.goals, u.id);
+      return json(res, 200, getUser());
+    }
 
-    // ---- projects --------------------------------------------------------
-    if (p === '/api/projects') {
-      const user = getUser();
+    // ---- segments --------------------------------------------------------
+    if (p === '/api/segments') {
       const tasks = allTasks();
-      if (m === 'GET') return json(res, 200, allProjects().map((pr) => decorateProject(pr, tasks, user)));
+      if (m === 'GET') return json(res, 200, allSegments().map((s) => decorateSegment(s, tasks)));
       if (m === 'POST') {
-        const id = newId('pr');
-        db.prepare('INSERT INTO projects (id,user_id,name,description,life_area,status_override,reminder_default,archived_at,created_at) VALUES (?,?,?,?,?,?,?,?,?)')
-          .run(id, USER_ID, inBody.name || 'Untitled project', inBody.description || '', inBody.life_area || null, null, inBody.reminder_default ? JSON.stringify(inBody.reminder_default) : null, null, new Date().toISOString());
-        log(db, USER_ID, 'project', id, 'created');
-        return json(res, 201, decorateProject(projectRow(id), tasks, user));
+        const id = newId('sg');
+        const maxOrder = allSegments().reduce((hi, s) => Math.max(hi, s.sort_order), -1);
+        db.prepare('INSERT INTO segments (id,user_id,name,icon,color,sort_order,status,archived_at,created_at) VALUES (?,?,?,?,?,?,?,?,?)')
+          .run(id, USER_ID, inBody.name || 'Untitled', inBody.icon || null, inBody.color || '#3B6FD9', maxOrder + 1, 'active', null, new Date().toISOString());
+        log(db, USER_ID, 'segment', id, 'created');
+        return json(res, 201, decorateSegment(segmentRow(id), tasks));
       }
     }
-    const projMatch = p.match(/^\/api\/projects\/([^/]+)(?:\/(archive|restore))?$/);
-    if (projMatch) {
-      const pr = projectRow(projMatch[1]);
-      if (!pr) return json(res, 404, { error: 'No such project' });
-      const user = getUser();
-      if (projMatch[2] === 'archive' && m === 'POST') {
-        db.prepare('UPDATE projects SET archived_at = ? WHERE id = ?').run(new Date().toISOString(), pr.id);
-        log(db, USER_ID, 'project', pr.id, 'archived');
-        return json(res, 200, decorateProject(projectRow(pr.id), allTasks(), user));
+    const segMatch = p.match(/^\/api\/segments\/([^/]+)(?:\/(archive|restore|hide|show))?$/);
+    if (segMatch) {
+      const sg = segmentRow(segMatch[1]);
+      if (!sg) return json(res, 404, { error: 'No such segment' });
+      const tasks = allTasks();
+      if (segMatch[2] === 'archive' && m === 'POST') {
+        db.prepare('UPDATE segments SET status=?, archived_at=? WHERE id=?').run('archived', new Date().toISOString(), sg.id);
+        log(db, USER_ID, 'segment', sg.id, 'archived');
+        return json(res, 200, decorateSegment(segmentRow(sg.id), tasks));
       }
-      if (projMatch[2] === 'restore' && m === 'POST') {
-        db.prepare('UPDATE projects SET archived_at = NULL WHERE id = ?').run(pr.id);
-        log(db, USER_ID, 'project', pr.id, 'restored');
-        return json(res, 200, decorateProject(projectRow(pr.id), allTasks(), user));
+      if (segMatch[2] === 'restore' && m === 'POST') {
+        db.prepare('UPDATE segments SET status=?, archived_at=NULL WHERE id=?').run('active', sg.id);
+        log(db, USER_ID, 'segment', sg.id, 'restored');
+        return json(res, 200, decorateSegment(segmentRow(sg.id), tasks));
       }
-      if (!projMatch[2] && m === 'GET') return json(res, 200, decorateProject(pr, allTasks(), user));
-      if (!projMatch[2] && m === 'PATCH') {
-        const fields = { name: pr.name, description: pr.description, life_area: pr.life_area, status_override: pr.status_override, reminder_default: pr.reminder_default };
-        if ('name' in inBody) fields.name = inBody.name;
-        if ('description' in inBody) fields.description = inBody.description;
-        if ('life_area' in inBody) fields.life_area = inBody.life_area;
-        if ('status_override' in inBody) fields.status_override = inBody.status_override;
-        if ('reminder_default' in inBody) fields.reminder_default = inBody.reminder_default ? JSON.stringify(inBody.reminder_default) : null;
-        db.prepare('UPDATE projects SET name=?, description=?, life_area=?, status_override=?, reminder_default=? WHERE id=?')
-          .run(fields.name, fields.description, fields.life_area, fields.status_override, fields.reminder_default, pr.id);
-        log(db, USER_ID, 'project', pr.id, 'edited');
-        return json(res, 200, decorateProject(projectRow(pr.id), allTasks(), user));
+      if (segMatch[2] === 'hide' && m === 'POST') {
+        db.prepare('UPDATE segments SET status=? WHERE id=?').run('hidden', sg.id);
+        return json(res, 200, decorateSegment(segmentRow(sg.id), tasks));
       }
-      if (!projMatch[2] && m === 'DELETE') {
-        db.prepare('DELETE FROM tasks WHERE project_id = ?').run(pr.id);
-        db.prepare('DELETE FROM projects WHERE id = ?').run(pr.id);
-        log(db, USER_ID, 'project', pr.id, 'deleted');
+      if (segMatch[2] === 'show' && m === 'POST') {
+        db.prepare('UPDATE segments SET status=? WHERE id=?').run('active', sg.id);
+        return json(res, 200, decorateSegment(segmentRow(sg.id), tasks));
+      }
+      if (!segMatch[2] && m === 'PATCH') {
+        const fields = { name: sg.name, icon: sg.icon, color: sg.color, sort_order: sg.sort_order };
+        for (const k of ['name', 'icon', 'color', 'sort_order']) if (k in inBody) fields[k] = inBody[k];
+        db.prepare('UPDATE segments SET name=?, icon=?, color=?, sort_order=? WHERE id=?').run(fields.name, fields.icon, fields.color, fields.sort_order, sg.id);
+        log(db, USER_ID, 'segment', sg.id, 'edited');
+        return json(res, 200, decorateSegment(segmentRow(sg.id), tasks));
+      }
+      if (!segMatch[2] && m === 'DELETE') {
+        db.prepare('DELETE FROM tasks WHERE segment_id=?').run(sg.id);
+        db.prepare('DELETE FROM segments WHERE id=?').run(sg.id);
+        log(db, USER_ID, 'segment', sg.id, 'deleted');
         return json(res, 200, { ok: true });
       }
+    }
+    if (p === '/api/segments/reorder' && m === 'PUT') {
+      (inBody.order || []).forEach((id, i) => db.prepare('UPDATE segments SET sort_order=? WHERE id=?').run(i, id));
+      return json(res, 200, allSegments());
     }
 
     // ---- tasks -------------------------------------------------------
@@ -174,7 +192,8 @@ const server = http.createServer(async (req, res) => {
       if (m === 'GET') {
         let rows = allTasks();
         const q = url.searchParams;
-        if (q.get('project_id')) rows = rows.filter((t) => t.project_id === q.get('project_id'));
+        if (q.get('segment_id')) rows = rows.filter((t) => t.segment_id === q.get('segment_id'));
+        if (q.get('state')) rows = rows.filter((t) => taskState(t, new Date()) === q.get('state'));
         if (q.get('status')) rows = rows.filter((t) => t.status === q.get('status'));
         if (q.get('q')) {
           const needle = q.get('q').toLowerCase();
@@ -184,10 +203,10 @@ const server = http.createServer(async (req, res) => {
       }
       if (m === 'POST') {
         const id = newId('t');
-        const pr = projectRow(inBody.project_id);
-        if (!pr) return json(res, 400, { error: 'project_id must name an existing project' });
-        db.prepare('INSERT INTO tasks (id,project_id,title,notes,due_at,priority,status,blocked,reminder,calendar_event_id,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
-          .run(id, inBody.project_id, inBody.title || 'Untitled task', inBody.notes || '', inBody.due_at || null, inBody.priority || 'normal', 'open', inBody.blocked ? 1 : 0, inBody.reminder ? JSON.stringify(inBody.reminder) : null, null, null, new Date().toISOString());
+        const sg = segmentRow(inBody.segment_id);
+        if (!sg) return json(res, 400, { error: 'segment_id must name an existing segment' });
+        db.prepare('INSERT INTO tasks (id,segment_id,title,notes,due_at,priority,status,reminder,calendar_event_id,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+          .run(id, inBody.segment_id, inBody.title || 'Untitled task', inBody.notes || '', inBody.due_at || null, inBody.priority || 'normal', 'open', inBody.reminder ? JSON.stringify(inBody.reminder) : null, null, null, new Date().toISOString());
         log(db, USER_ID, 'task', id, 'created');
         let t = taskRow(id);
         if (inBody.calendarExport && t.due_at) t = exportToCalendar(t);
@@ -227,15 +246,13 @@ const server = http.createServer(async (req, res) => {
       if (!action && m === 'GET') return json(res, 200, decorateTask(t));
       if (!action && m === 'PATCH') {
         const wasDate = t.due_at;
-        const fields = { title: t.title, notes: t.notes, due_at: t.due_at, priority: t.priority, blocked: t.blocked, reminder: t.reminder, project_id: t.project_id };
-        for (const k of ['title', 'notes', 'due_at', 'priority', 'project_id']) if (k in inBody) fields[k] = inBody[k];
-        if ('blocked' in inBody) fields.blocked = inBody.blocked ? 1 : 0;
+        const fields = { title: t.title, notes: t.notes, due_at: t.due_at, priority: t.priority, reminder: t.reminder, segment_id: t.segment_id };
+        for (const k of ['title', 'notes', 'due_at', 'priority', 'segment_id']) if (k in inBody) fields[k] = inBody[k];
         if ('reminder' in inBody) fields.reminder = inBody.reminder ? JSON.stringify(inBody.reminder) : null;
-        db.prepare('UPDATE tasks SET title=?, notes=?, due_at=?, priority=?, blocked=?, reminder=?, project_id=? WHERE id=?')
-          .run(fields.title, fields.notes, fields.due_at, fields.priority, fields.blocked, fields.reminder, fields.project_id, t.id);
-        log(db, USER_ID, 'task', t.id, 'edited');
+        db.prepare('UPDATE tasks SET title=?, notes=?, due_at=?, priority=?, reminder=?, segment_id=? WHERE id=?')
+          .run(fields.title, fields.notes, fields.due_at, fields.priority, fields.reminder, fields.segment_id, t.id);
+        log(db, USER_ID, 'task', t.id, wasDate !== fields.due_at ? 'rescheduled' : 'edited');
         let updated = taskRow(t.id);
-        // §4.4 — a moved deadline on a linked task offers to move the calendar event too.
         const dateMoved = fields.due_at !== wasDate;
         if (dateMoved && updated.calendar_event_id) updated = exportToCalendar(updated);
         return json(res, 200, Object.assign(decorateTask(updated), { calendarMoved: dateMoved && !!t.calendar_event_id }));
@@ -247,13 +264,24 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    // ---- dashboard & weekly summary -----------------------------------
+    // ---- dashboard & progress -----------------------------------
     if (p === '/api/dashboard' && m === 'GET') return json(res, 200, dashboard());
-    if (p === '/api/summary/weekly' && m === 'GET') return json(res, 200, weeklySummary());
+    if (p === '/api/progress' && m === 'GET') return json(res, 200, progress());
 
     // ---- settings ------------------------------------------------------
     if (p === '/api/settings/reminder' && m === 'PUT') {
-      db.prepare('UPDATE users SET notification_defaults=? WHERE id=?').run(JSON.stringify(inBody), USER_ID);
+      const u = getUser();
+      const prefs = JSON.parse(u.preferences);
+      prefs.reminderDefault = inBody;
+      db.prepare('UPDATE users SET preferences=? WHERE id=?').run(JSON.stringify(prefs), USER_ID);
+      return json(res, 200, getUser());
+    }
+    if (p === '/api/settings/voice' && m === 'PUT') {
+      const u = getUser();
+      const prefs = JSON.parse(u.preferences);
+      if ('voiceSpoken' in inBody) prefs.voiceSpoken = !!inBody.voiceSpoken;
+      if ('privateMode' in inBody) prefs.privateMode = !!inBody.privateMode;
+      db.prepare('UPDATE users SET preferences=? WHERE id=?').run(JSON.stringify(prefs), USER_ID);
       return json(res, 200, getUser());
     }
     if (p === '/api/settings/calendar' && m === 'PUT') {
@@ -266,20 +294,19 @@ const server = http.createServer(async (req, res) => {
     // ---- assistant -------------------------------------------------------
     if (p === '/api/assistant/parse' && m === 'POST') {
       const today = inBody.today ? new Date(inBody.today + 'T00:00:00') : new Date();
-      return json(res, 200, { proposals: assistant.parse(inBody.text || '', { today, projects: allProjects() }) });
+      return json(res, 200, { proposals: assistant.parse(inBody.text || '', { today, segments: allSegments(), listMode: !!inBody.listMode }) });
     }
     if (p === '/api/assistant/query' && m === 'POST') {
       const today = inBody.today ? new Date(inBody.today + 'T00:00:00') : new Date();
-      return json(res, 200, assistant.answer(inBody.text || '', { today, projects: allProjects(), tasks: allTasks() }));
+      return json(res, 200, assistant.answer(inBody.text || '', { today, segments: allSegments(), tasks: allTasks() }));
     }
 
     // ---- search ----------------------------------------------------------
     if (p === '/api/search' && m === 'GET') {
       const needle = (url.searchParams.get('q') || '').toLowerCase();
-      if (!needle) return json(res, 200, { projects: [], tasks: [] });
-      const projects = allProjects().filter((pr) => pr.name.toLowerCase().includes(needle) || (pr.description || '').toLowerCase().includes(needle));
+      if (!needle) return json(res, 200, { tasks: [] });
       const tasks = allTasks().filter((t) => t.title.toLowerCase().includes(needle) || (t.notes || '').toLowerCase().includes(needle)).map(decorateTask);
-      return json(res, 200, { projects, tasks });
+      return json(res, 200, { tasks });
     }
 
     return json(res, 404, { error: 'No such endpoint', path: p });
@@ -290,8 +317,6 @@ const server = http.createServer(async (req, res) => {
 });
 
 function exportToCalendar(t) {
-  // Mock: one external event id per task, reused on update rather than
-  // duplicated — §4.5, "no more than one external calendar event."
   const eventId = t.calendar_event_id || 'gcal_mock_' + Math.random().toString(36).slice(2, 10);
   db.prepare('UPDATE tasks SET calendar_event_id=? WHERE id=?').run(eventId, t.id);
   return taskRow(t.id);
@@ -300,43 +325,29 @@ function exportToCalendar(t) {
 function dashboard() {
   const user = getUser();
   const tasks = allTasks();
-  const projects = allProjects().filter((p) => !p.archived_at).map((p) => decorateProject(p, tasks, user));
+  const segments = allSegments().filter((s) => s.status === 'active').map((s) => decorateSegment(s, tasks));
   const now = new Date();
+  const open = tasks.filter((t) => t.status === 'open');
 
-  const dueToday = tasks.filter((t) => t.status === 'open' && t.due_at && daysUntil(t.due_at, now) === 0).length;
-  const overdue = tasks.filter((t) => t.status === 'open' && t.due_at && daysUntil(t.due_at, now) < 0).length;
-  const needsAttention = projects.filter((p) => p.status === 'red' || p.status === 'yellow').length;
+  const overdue = open.filter((t) => taskState(t, now) === 'overdue').length;
+  const approaching = open.filter((t) => taskState(t, now) === 'approaching').length;
+  const pending = open.filter((t) => taskState(t, now) === 'pending').length;
   const completedThisWeek = tasks.filter((t) => t.status === 'completed' && t.completed_at && daysUntil(t.completed_at.slice(0, 10), now) >= -7).length;
 
-  const attention = projects
-    .filter((p) => p.status === 'red' || p.status === 'yellow')
-    .sort((a, b) => (a.status === 'red' ? 0 : 1) - (b.status === 'red' ? 0 : 1));
+  const sorted = segments.slice().sort((a, b) => (b.overdueCount > 0) - (a.overdueCount > 0) || (b.approachingCount > 0) - (a.approachingCount > 0));
 
   return {
     user: { name: user.display_name },
-    summary: { dueToday, overdue, needsAttention, completedThisWeek },
-    projects,
-    attention
+    summary: { overdue, approaching, pending, completedThisWeek },
+    segments: sorted
   };
 }
 
-function weeklySummary() {
+function progress() {
   const now = new Date();
   const tasks = allTasks();
-  const projects = allProjects();
-  const completedTasks = tasks.filter((t) => t.status === 'completed' && t.completed_at && daysUntil(t.completed_at.slice(0, 10), now) >= -7);
-  const completedProjects = projects.filter((p) => p.archived_at && daysUntil(p.archived_at.slice(0, 10), now) >= -7);
-  const overdueCarryover = tasks.filter((t) => t.status === 'open' && t.due_at && daysUntil(t.due_at, now) < 0);
-  const highlights = tasks
-    .filter((t) => t.status === 'open' && t.due_at && daysUntil(t.due_at, now) >= 0 && daysUntil(t.due_at, now) <= 7)
-    .sort((a, b) => (b.priority === 'high') - (a.priority === 'high') || daysUntil(a.due_at, now) - daysUntil(b.due_at, now))
-    .slice(0, 5);
-  return {
-    completedTasks: completedTasks.map(decorateTask),
-    completedProjects,
-    overdueCarryover: overdueCarryover.map(decorateTask),
-    highlights: highlights.map(decorateTask)
-  };
+  const completedThisWeek = tasks.filter((t) => t.status === 'completed' && t.completed_at && daysUntil(t.completed_at.slice(0, 10), now) >= -7);
+  return { completedThisWeek: completedThisWeek.map(decorateTask), totalCompleted: tasks.filter((t) => t.status === 'completed').length };
 }
 
 server.listen(PORT, '0.0.0.0', () => {

@@ -1,20 +1,25 @@
 # Ballast — a personal commitments dashboard
 
-> ### Current build: Smart Life Tracker (Project → Task), per the MVP requirements doc
+> ### Current build: Smart Life Tracker, Todoist-inspired, per the client UI requirements doc
 >
-> The active implementation now follows a formal MVP requirements document
-> (nine screens, a two-level Project/Task hierarchy, deterministic red/
-> yellow/green/gray status rules, a reminder hierarchy, one-way calendar
-> export, and voice/typed assistant guardrails) rather than the free-form
-> life-segments model described below. It supersedes the "Executive Brief"
-> prototype's information architecture while keeping its visual language.
+> The active implementation follows the client's own, more specific UI
+> requirements doc: a **Life Segment → Task** structure (not Project/Task),
+> four purely date-driven task states — Overdue, Approaching, Pending,
+> Completed — instead of a computed per-project status, an onboarding that
+> asks age range, life stage, and goals, and an interface direction that's
+> explicitly "clean, task-first, inspired by Todoist's simplicity and
+> scanability" while keeping its own palette, type, and layout. It
+> supersedes the earlier Project/Task build's information architecture and
+> visual system both.
 >
-> - **App:** [`prototype/tracker.html`](prototype/tracker.html) — all nine
->   screens, working end to end, with a real client-side parser and status
->   engine for the no-backend case.
+> - **App:** [`prototype/tracker.html`](prototype/tracker.html) — all eight
+>   core screens plus the Upcoming/Completed/Settings tabs, working end to
+>   end, with a real client-side parser and task-state engine for the
+>   no-backend case.
 > - **Backend:** [`backend/`](backend/server.js) — Node + the built-in
 >   `node:sqlite`, no install step. See [`backend/README.md`](backend/README.md)
->   for the data model, the status engine, the assistant, and every endpoint.
+>   for the data model, the task-state engine, the assistant (including the
+>   five supported voice questions), and every endpoint.
 > - **How to navigate it, screen by screen:**
 >   [`docs/NAVIGATION.md`](docs/NAVIGATION.md).
 > - **Run it:** `node backend/server.js`, then open `http://localhost:4000`
@@ -22,8 +27,8 @@
 >   `prototype/tracker.html` directly / share its published link — it works
 >   with no backend at all, keeping state in the browser.
 >
-> Everything below this point describes the earlier "personal life
-> segments" direction (`app/` and the Executive Brief mockups in `design/`)
+> Everything below this point describes earlier directions (`app/`, the
+> Executive Brief mockups in `design/`, and the prior Project/Task build)
 > and is kept as design history, not the current spec.
 
 ---

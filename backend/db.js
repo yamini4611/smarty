@@ -18,22 +18,22 @@ function open() {
 }
 
 function plant(db, today) {
-  const { user, projects, tasks } = seed(today);
-  const u = db.prepare('INSERT INTO users (id,email,display_name,timezone,auth_provider,notification_defaults,created_at) VALUES (?,?,?,?,?,?,?)');
-  u.run(user.id, user.email, user.display_name, user.timezone, user.auth_provider, user.notification_defaults, user.created_at);
+  const { user, segments, tasks } = seed(today);
+  const u = db.prepare('INSERT INTO users (id,email,display_name,age_range,life_stage,goals,timezone,preferences,created_at) VALUES (?,?,?,?,?,?,?,?,?)');
+  u.run(user.id, user.email, user.display_name, user.age_range, user.life_stage, user.goals, user.timezone, user.preferences, user.created_at);
 
-  const p = db.prepare('INSERT INTO projects (id,user_id,name,description,life_area,status_override,reminder_default,archived_at,created_at) VALUES (?,?,?,?,?,?,?,?,?)');
-  for (const pr of projects) p.run(pr.id, pr.user_id, pr.name, pr.description, pr.life_area, pr.status_override, pr.reminder_default, pr.archived_at, pr.created_at);
+  const s = db.prepare('INSERT INTO segments (id,user_id,name,icon,color,sort_order,status,archived_at,created_at) VALUES (?,?,?,?,?,?,?,?,?)');
+  for (const sg of segments) s.run(sg.id, sg.user_id, sg.name, sg.icon, sg.color, sg.sort_order, sg.status, sg.archived_at, sg.created_at);
 
-  const t = db.prepare('INSERT INTO tasks (id,project_id,title,notes,due_at,priority,status,blocked,reminder,calendar_event_id,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
-  for (const tk of tasks) t.run(tk.id, tk.project_id, tk.title, tk.notes, tk.due_at, tk.priority, tk.status, tk.blocked, tk.reminder, tk.calendar_event_id, tk.completed_at, tk.created_at);
+  const t = db.prepare('INSERT INTO tasks (id,segment_id,title,notes,due_at,priority,status,reminder,calendar_event_id,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
+  for (const tk of tasks) t.run(tk.id, tk.segment_id, tk.title, tk.notes, tk.due_at, tk.priority, tk.status, tk.reminder, tk.calendar_event_id, tk.completed_at, tk.created_at);
 
-  db.prepare('INSERT INTO integrations (id,user_id,provider,scope,token_reference,status) VALUES (?,?,?,?,?,?)')
+  db.prepare('INSERT INTO integrations (id,user_id,provider,permission_scope,token_reference,status) VALUES (?,?,?,?,?,?)')
     .run('ig1', user.id, 'google_calendar', 'calendar.events.write', 'mock-token', 'disconnected');
 }
 
 function wipe(db) {
-  for (const table of ['reminders', 'activity_log', 'tasks', 'projects', 'integrations', 'users']) {
+  for (const table of ['reminders', 'activity_log', 'tasks', 'segments', 'integrations', 'users']) {
     db.exec('DELETE FROM ' + table);
   }
 }

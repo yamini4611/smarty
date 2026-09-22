@@ -1,27 +1,30 @@
 'use strict';
 
-// The two jobs the requirements doc gives the assistant, §5:
-//   parse(text, ...)  — turn a brain dump into proposed projects/tasks. Never
-//                        commits anything; the caller shows a confirmation.
-//   answer(text, ...) — read-only retrieval, e.g. "what's due this week?".
-//                        Counting and filtering happen in code over the real
-//                        records, never guessed by this layer.
+// The two jobs the requirements doc gives voice/typed interaction, §6:
+//   parse(text, ...)  — turn a sentence into a proposed task. Never commits
+//                        anything; the caller always shows a confirmation.
+//   answer(text, ...) — voice retrieval, mapped to the five supported
+//                        questions in §6.3. Counting and filtering happen in
+//                        code over the real records, never guessed here.
 //
 // In the real build this file is replaced by a call to Claude with the same
 // contract; the shape it returns does not change.
 
-const { computeProjectStatus, daysUntil } = require('./status.js');
+const { taskState, daysUntil } = require('./status.js');
 
 const WD = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-const TASK_VERBS = /^(call|pay|submit|book|schedule|tour|prepare|review|send|confirm|finish|complete|apply|buy|renew|sign|visit|email|draft|file|attend|pick up|drop off|order|check|arrange|follow up|register|update|clean|fix|pack|meet|interview)\b/i;
 const REMINDER_PHRASE = /\bremind me\b|\breminder\b/i;
 const HIGH_PRIORITY = /\burgent\b|\basap\b|\bimmediately\b|\bcritical\b/i;
+const LOW_PRIORITY = /\bwhenever\b|\bno rush\b|\blow priority\b/i;
 
 const iso = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const fmt = (d) => d.getDate() + ' ' + MON[d.getMonth()];
 
 // Resolves a date phrase. `ambiguous: true` marks a phrase that names more
-// than one day without saying which — per §5.2, that becomes a follow-up
-// question instead of a silent guess, rather than a value we hand back.
+// than one day without saying which — per §5.1, that becomes a follow-up
+// question instead of a silent guess, rather than a value handed back.
 function resolveDate(t, today) {
   const add = (n) => { const x = new Date(today); x.setDate(x.getDate() + n); return x; };
   let m;
@@ -52,22 +55,13 @@ function resolveDate(t, today) {
     if (x < today) x = new Date(today.getFullYear(), today.getMonth() + 1, day);
     return { date: x };
   }
-  if (/\bnext week\b/.test(t)) {
-    return { date: add(7), ambiguous: true, question: 'Which day next week?' };
-  }
-  if (/\bend of the month\b|\bthis month\b/.test(t)) {
-    return { date: new Date(today.getFullYear(), today.getMonth() + 1, 0), ambiguous: true, question: 'Which day this month?' };
-  }
+  if (/\bnext week\b/.test(t)) return { date: add(7), ambiguous: true, question: 'Which day next week?' };
+  if (/\bend of the month\b|\bthis month\b/.test(t)) return { date: new Date(today.getFullYear(), today.getMonth() + 1, 0), ambiguous: true, question: 'Which day this month?' };
   return {};
 }
-const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const fmt = (d) => d.getDate() + ' ' + MON[d.getMonth()];
 
 function reminderFrom(clause) {
   if (!REMINDER_PHRASE.test(clause)) return null;
-  if (/\bday before\b|\bthe day before\b/i.test(clause)) return { mode: 'before', offsetDays: 1, atHour: 9, needsConfirm: true };
-  if (/\bmorning of\b|\bsame day\b/i.test(clause)) return { mode: 'at_deadline', needsConfirm: true };
   return { mode: 'before', offsetDays: 1, atHour: 9, needsConfirm: true };
 }
 
@@ -76,14 +70,20 @@ function splitClauses(text) {
     .split(/\s+and (?:then )?(?=\w)|[;.]\s+|,\s+(?:and\s+)?(?:also|then)\s+/i)
     .map((c) => c.trim())
     .filter((c) => c.length > 2);
-  // A trailing "...and remind me..." is part of the task before it, not a
-  // separate responsibility — reattach it rather than treat it as its own item.
   const merged = [];
   parts.forEach((c) => {
     if (/^remind me\b/i.test(c) && merged.length) merged[merged.length - 1] += ' and ' + c;
     else merged.push(c);
   });
   return (merged.length ? merged : [String(text)]).slice(0, 4);
+}
+
+// The onboarding "add first tasks" screen invites a plain list — "pay the
+// bill, book the dentist" — so it splits on bare commas too, not just the
+// clause-boundary punctuation a full sentence needs elsewhere.
+function splitList(text) {
+  const parts = String(text).split(/\s*,\s*|\s+and\s+/i).map((c) => c.trim()).filter((c) => c.length > 2);
+  return (parts.length ? parts : [String(text)]).slice(0, 6);
 }
 
 function cleanTitle(raw) {
@@ -95,75 +95,50 @@ function cleanTitle(raw) {
     .replace(/\b(tomorrow|today|tonight|next week|this month|end of the month)\b/gi, '')
     .replace(/\bin \d+ days?\b/gi, '')
     .replace(/\b(?:on |by |before )?the \d{1,2}(?:st|nd|rd|th)\b/gi, '')
-    .replace(/,?\s*\b(?:urgent|asap|immediately|critical)\b\.?/gi, '')
+    .replace(/,?\s*\b(?:urgent|asap|immediately|critical|whenever|no rush|low priority)\b\.?/gi, '')
     .replace(/\s{2,}/g, ' ').replace(/\s+([,.])/g, '$1').replace(/[,\s]+$/, '').trim();
 }
 
-// Matches a clause against the user's existing projects by name or life area
-// keyword overlap. Returns the project or null.
-function matchProject(clause, projects) {
+// Matches a clause against the user's existing segments by name overlap.
+function matchSegment(clause, segments) {
   const t = clause.toLowerCase();
   let best = null, bestScore = 0;
-  for (const p of projects) {
-    if (p.archived_at) continue;
-    const words = p.name.toLowerCase().split(/\W+/).filter((w) => w.length > 3);
-    const score = words.filter((w) => t.includes(w)).length + (p.life_area && t.includes(p.life_area.toLowerCase()) ? 1 : 0);
-    if (score > bestScore) { bestScore = score; best = p; }
+  for (const s of segments) {
+    if (s.status !== 'active') continue;
+    const words = s.name.toLowerCase().split(/\W+/).filter((w) => w.length > 3);
+    const score = words.filter((w) => t.includes(w)).length;
+    if (score > bestScore) { bestScore = score; best = s; }
   }
   return bestScore > 0 ? best : null;
 }
 
+// Every clause becomes a proposed task — this doc's onboarding is what
+// creates segments; typed/voice capture during daily use only adds tasks.
 function parse(text, opts) {
   const today = opts.today || new Date();
-  const projects = opts.projects || [];
-  const clauses = splitClauses(text);
+  const segments = opts.segments || [];
+  const clauses = opts.listMode ? splitList(text) : splitClauses(text);
 
   return clauses.map((raw, i) => {
     const t = raw.toLowerCase();
     const when = resolveDate(t, today);
-    const project = matchProject(raw, projects);
+    const segment = matchSegment(raw, segments);
     const title = cap(cleanTitle(raw)) || cap(raw.trim());
-
-    // "Stay on top of X" names an ongoing area of responsibility, not a
-    // single step — propose a project for X rather than parsing it as a task.
-    if (!project) {
-      const mgmt = t.match(/\b(?:stay|keep|staying|keeping)\s+(?:on top of|current on|up to date on)\s+(.+)$|\b(?:manage|managing|track|tracking|handle|handling)\s+(.+)$/i);
-      if (mgmt) {
-        const rem = (mgmt[1] || mgmt[2] || '').trim();
-        return { id: 'p' + (i + 1), kind: 'project', title: rem ? cap(rem) : title, followUp: null };
-      }
-    }
-
-    const isTaskShaped = TASK_VERBS.test(t.trim()) || when.date || /\bappointment\b|\bmeeting\b/.test(t);
-    if (isTaskShaped) {
-      return {
-        id: 'p' + (i + 1),
-        kind: 'task',
-        title,
-        projectId: project ? project.id : null,
-        projectName: project ? project.name : null,
-        needsProjectChoice: !project,
-        date: when.date ? iso(when.date) : null,
-        dateAmbiguous: !!when.ambiguous,
-        followUp: when.question || null,
-        priority: HIGH_PRIORITY.test(t) ? 'high' : 'normal',
-        reminder: reminderFrom(raw)
-      };
-    }
-
-    // A short noun phrase that doesn't match anything existing reads as a new
-    // area of responsibility, not a step inside one — propose a project.
-    if (!project && raw.trim().split(/\s+/).length <= 5) {
-      return { id: 'p' + (i + 1), kind: 'project', title, followUp: null };
-    }
+    let priority = 'normal';
+    if (HIGH_PRIORITY.test(t)) priority = 'high';
+    else if (LOW_PRIORITY.test(t)) priority = 'low';
 
     return {
       id: 'p' + (i + 1),
-      kind: 'ambiguous',
       title,
-      followUp: 'Is "' + title + '" a new project, or a task inside ' + (project ? project.name : 'an existing project') + '?',
-      projectId: project ? project.id : null,
-      projectName: project ? project.name : null
+      segmentId: segment ? segment.id : null,
+      segmentName: segment ? segment.name : null,
+      needsSegmentChoice: !segment,
+      date: when.date ? iso(when.date) : null,
+      dateAmbiguous: !!when.ambiguous,
+      followUp: when.question || null,
+      priority,
+      reminder: reminderFrom(raw)
     };
   });
 }
@@ -172,54 +147,75 @@ const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eig
 const count = (n, sing, plur) => (n < 10 ? WORDS[n] : n) + ' ' + (n === 1 ? sing : plur);
 const cap1 = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
+// The five supported voice questions, §6.3 — matched in the order the table
+// lists them; anything else falls back to a plain keyword search.
 function answer(text, ctx) {
   const t = String(text).toLowerCase();
   const now = ctx.today || new Date();
-  const projects = ctx.projects || [];
+  const segments = ctx.segments || [];
   const tasks = ctx.tasks || [];
-  const open = (pid) => tasks.filter((tk) => tk.project_id === pid && tk.status === 'open');
+  const open = tasks.filter((tk) => tk.status === 'open');
+  const segName = (id) => { const s = segments.find((x) => x.id === id); return s ? s.name : ''; };
 
-  if (/falling behind|overdue|late|behind|slipping|missed/.test(t)) {
-    const rows = projects
-      .filter((p) => !p.archived_at)
-      .map((p) => ({ p, s: computeProjectStatus(p, tasks, now) }))
-      .filter((r) => r.s.status === 'red');
+  if (/what is overdue|what'?s overdue|overdue\b/.test(t)) {
+    const rows = open.filter((tk) => taskState(tk, now) === 'overdue').sort((a, b) => daysUntil(b.due_at, now) - daysUntil(a.due_at, now));
     return {
-      title: 'FALLING BEHIND',
-      lead: rows.length
-        ? cap1(count(rows.length, 'project needs', 'projects need')) + ' attention right now.'
-        : 'Nothing is red. Everything still has time on it.',
-      list: rows.map((r) => ({ project: r.p.name, reason: r.s.reason, taskId: r.s.task ? r.s.task.id : null }))
+      title: 'OVERDUE',
+      lead: rows.length ? cap1(count(rows.length, 'task is', 'tasks are')) + ' overdue.' : 'Nothing is overdue.',
+      ids: rows.map((tk) => tk.id)
     };
   }
 
-  if (/due this week|this week|next few days|coming up/.test(t)) {
-    const soon = tasks.filter((tk) => tk.status === 'open' && tk.due_at && daysUntil(tk.due_at, now) >= 0 && daysUntil(tk.due_at, now) <= 7)
-      .sort((a, b) => daysUntil(a.due_at, now) - daysUntil(b.due_at, now));
+  // Checked before the plainer "this week" match below, since both phrases
+  // contain "this week" but ask for opposite things.
+  if (/how much did i complete|completed this week|what did i complete/.test(t)) {
+    const done = tasks.filter((tk) => tk.status === 'completed' && tk.completed_at && daysUntil(tk.completed_at.slice(0, 10), now) >= -7);
+    return {
+      title: 'COMPLETED THIS WEEK',
+      lead: done.length ? cap1(count(done.length, 'task', 'tasks')) + ' completed this week.' : 'Nothing completed yet this week.',
+      ids: done.map((tk) => tk.id)
+    };
+  }
+
+  if (/due this week|this week|next few days|approaching/.test(t)) {
+    const rows = open.filter((tk) => taskState(tk, now) === 'approaching').sort((a, b) => daysUntil(a.due_at, now) - daysUntil(b.due_at, now));
     return {
       title: 'DUE THIS WEEK',
-      lead: soon.length ? cap1(count(soon.length, 'task falls', 'tasks fall')) + ' inside the next seven days.' : 'Nothing is due in the next seven days.',
-      ids: soon.map((tk) => tk.id)
+      lead: rows.length ? cap1(count(rows.length, 'task is', 'tasks are')) + ' approaching in the next seven days.' : 'Nothing is due in the next seven days.',
+      ids: rows.map((tk) => tk.id)
     };
   }
 
-  if (/\btoday\b/.test(t)) {
-    const dueToday = tasks.filter((tk) => tk.status === 'open' && tk.due_at && daysUntil(tk.due_at, now) === 0);
-    return { title: 'DUE TODAY', lead: dueToday.length ? cap1(count(dueToday.length, 'task is', 'tasks are')) + ' due today.' : 'Nothing is due today.', ids: dueToday.map((tk) => tk.id) };
+  if (/what should i do next|do next|what next/.test(t)) {
+    const urgent = open.filter((tk) => taskState(tk, now) === 'overdue' || taskState(tk, now) === 'approaching')
+      .sort((a, b) => daysUntil(a.due_at, now) - daysUntil(b.due_at, now));
+    if (urgent.length) {
+      const tk = urgent[0];
+      const state = taskState(tk, now);
+      return { title: 'DO NEXT', lead: '"' + tk.title + '" in ' + segName(tk.segment_id) + ' — ' + (state === 'overdue' ? 'overdue' : 'due soon') + '.', ids: [tk.id] };
+    }
+    const byPriority = open.filter((tk) => taskState(tk, now) === 'pending').sort((a, b) => (b.priority === 'high') - (a.priority === 'high'));
+    if (byPriority.length) return { title: 'DO NEXT', lead: '"' + byPriority[0].title + '" in ' + segName(byPriority[0].segment_id) + ' is your highest-priority open task.', ids: [byPriority[0].id] };
+    return { title: 'DO NEXT', lead: 'Nothing open right now — you’re caught up.', ids: [] };
+  }
+
+  // "What do I have in <segment>?"
+  const inMatch = t.match(/what do i have in ([a-z ]+)\??$/) || t.match(/\bin ([a-z ]+)\??$/);
+  if (inMatch) {
+    const needle = inMatch[1].trim();
+    const seg = segments.find((s) => s.status === 'active' && s.name.toLowerCase().includes(needle));
+    if (seg) {
+      const rows = open.filter((tk) => tk.segment_id === seg.id);
+      return { title: seg.name.toUpperCase(), lead: rows.length ? cap1(count(rows.length, 'active task', 'active tasks')) + ' in ' + seg.name + '.' : 'Nothing active in ' + seg.name + '.', ids: rows.map((tk) => tk.id) };
+    }
   }
 
   const words = t.split(/\W+/).filter((w) => w.length > 3);
-  const hitTasks = tasks.filter((tk) => tk.status === 'open' && words.some((w) => tk.title.toLowerCase().includes(w) || (tk.notes || '').toLowerCase().includes(w)));
-  const hitProjects = projects.filter((p) => !p.archived_at && words.some((w) => p.name.toLowerCase().includes(w)));
-  if (hitProjects.length && !hitTasks.length) {
-    const p = hitProjects[0];
-    const s = computeProjectStatus(p, tasks, now);
-    return { title: p.name.toUpperCase(), lead: s.reason, ids: open(p.id).map((tk) => tk.id) };
-  }
+  const hits = open.filter((tk) => words.some((w) => tk.title.toLowerCase().includes(w) || (tk.notes || '').toLowerCase().includes(w)));
   return {
-    title: hitTasks.length ? 'WHAT I FOUND' : 'NOTHING MATCHED',
-    lead: hitTasks.length ? cap1(count(hitTasks.length, 'task looks', 'tasks look')) + ' like what you asked about.' : 'Try a project name, a date, or a word from the task itself.',
-    ids: hitTasks.map((tk) => tk.id)
+    title: hits.length ? 'WHAT I FOUND' : 'NOTHING MATCHED',
+    lead: hits.length ? cap1(count(hits.length, 'task looks', 'tasks look')) + ' like what you asked about.' : 'Try a segment name, a date, or a word from the task itself.',
+    ids: hits.map((tk) => tk.id)
   };
 }
 

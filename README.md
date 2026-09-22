@@ -5,14 +5,19 @@
 > The structure follows the client's UI requirements doc — a **Life
 > Segment → Task** model, four purely date-driven task states (Overdue,
 > Approaching, Pending, Completed), onboarding that asks age range, life
-> stage, and goals — but the visual system was redirected again after the
-> client saw the Todoist-style build and asked for something warmer: **big
-> rounded cards, not thin rows**, a description on every segment, past/done
-> tasks kept visible rather than tucked away, and — for a segment that's a
-> temporary project rather than an ongoing part of life — **a turtle
-> travelling a start-to-finish path** as its progress indicator. The result
-> is a cream-and-sage, soft-shadowed interface meant to feel inviting and
-> calm rather than clinical, while still surfacing what's overdue clearly.
+> stage, and goals — but the visual system was redirected twice on direct
+> feedback after seeing it run. First: warmer, not clinical — **big rounded
+> cards, not thin rows**, a description on every segment, past/done tasks
+> kept visible rather than tucked away, a cream-and-sage soft-shadowed
+> palette. Then: each card shows its real next tasks tagged **High / Medium
+> / Low**, not just abstract counts, and every segment card **stays on
+> screen regardless of which filter is selected** — a filter narrows what's
+> previewed inside each box, it never makes the box disappear. Segments now
+> come in three kinds chosen at setup — **Permanent** (a standing part of
+> life), **Routine** (a steady cadence), or **Temporary project** (has an
+> actual end) — and a project gets both a **turtle travelling a
+> start-to-finish path**, driven by tasks completed, and an optional
+> estimated finish date shown right at the end of that path.
 >
 > - **App:** [`prototype/tracker.html`](prototype/tracker.html) — all eight
 >   core screens plus the Upcoming/Completed/Settings tabs, working end to

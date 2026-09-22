@@ -20,7 +20,8 @@ CREATE TABLE IF NOT EXISTS segments (
   description TEXT NOT NULL DEFAULT '',
   icon TEXT,
   color TEXT NOT NULL DEFAULT '#3B6FD9',
-  kind TEXT NOT NULL DEFAULT 'ongoing',    -- ongoing | project — a project gets a start->finish tracker
+  kind TEXT NOT NULL DEFAULT 'permanent',  -- permanent | routine | project — a project gets a start->finish turtle
+  target_date TEXT,                        -- a project's own estimated finish date, optional
   sort_order INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'active',   -- active | hidden | archived
   archived_at TEXT,

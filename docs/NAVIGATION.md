@@ -34,10 +34,16 @@ or come back and add your own later.
 
 **5 · Choose your segments.** The working list from step 4, editable inline
 — rename any of them right in the row, `Remove` any you don't want, and add
-a fully custom one in the field at the bottom. Each one also gets a choice
-right here: **Ongoing** (a standing part of life, like Work or Health —
-never "finishes") or **Temporary project** (something with an actual end,
-like a kitchen remodel or a wedding — gets its own start-to-finish tracker).
+a fully custom one in the field at the bottom. Each one also gets a kind,
+chosen right here:
+
+- **Permanent** — a standing part of life (Work, Finances). No finish line.
+- **Routine** — kept up on a steady cadence (Health, chores). Doesn't
+  "finish" either, just tended regularly.
+- **Temporary project** — has an actual end (a kitchen remodel, a wedding).
+  Gets its own start-to-finish turtle tracker, and an optional field appears
+  right there to set when you're estimating you'll be done.
+
 `Continue with N segments` moves on once at least one exists.
 
 **6 · Add first tasks.** A capture bar — type or speak several things at
@@ -56,24 +62,30 @@ segment exists.
 bell, and a profile avatar. Below that: a soft stat card (Overdue,
 Approaching, Pending, Done this week), then filter chips (`All` /
 `Overdue` / `Approaching` / `Pending` / `Completed`), then every active
-segment as its own big rounded card — an icon, its name, the description
-you gave it, and its counts in the state words themselves (never color
-alone) — sorted with segments carrying overdue work first. A project's card
-shows a small turtle on a dashed path from **Start** to **Finish**,
-positioned by how much of its work is done; an ongoing segment shows a
-quiet "All caught up here" once nothing's outstanding, rather than staying
-silent about it. A persistent circular **＋** button opens quick add from
-here or from Upcoming, by typing or speaking, exactly as the doc's "global
-quick-add... from any dashboard state" asks for.
+segment as its own big rounded card — an icon, its name, its kind badge
+(`Project` or `Routine`; a permanent segment carries none, to keep it
+visually quiet), the description you gave it, and — the actual point of the
+card — a short list of its real next tasks, each tagged **High**, **Medium**,
+or **Low**, not just an abstract count. A project's card also shows a small
+turtle on a dashed path from **Start** to a **Finish** marker labelled with
+its estimated date if you set one, positioned by how much of its work is
+done. **Every segment stays on screen no matter which filter chip is
+selected** — a filter only narrows which tasks show in each card's preview
+(a card with nothing matching says so — "Nothing overdue here" — rather
+than disappearing), so the boxes stay a stable, calm anchor of the screen.
+A persistent circular **＋** button opens quick add from here or from
+Upcoming, by typing or speaking, exactly as the doc's "global quick-add...
+from any dashboard state" asks for.
 
 **8 · Segment detail** — tap any segment card to land here: the same card,
-larger, with its full description and (for a project) the same turtle path
-at the top; below it, **Tasks to do** (tap the circle to complete —
-matching the doc's "completing a task updates the dashboard without
-requiring a manual refresh") and then **Past · Done**, the segment's
-completed history. The **⋮** menu renames, edits the description, recolors,
-switches it between ongoing and project, hides, archives/restores, or
-permanently deletes the segment.
+larger, with its full description, kind badge, and (for a project) the same
+turtle path and estimated-finish note at the top; below it, **Tasks to do**
+(tap the circle to complete — matching the doc's "completing a task updates
+the dashboard without requiring a manual refresh") and then **Past · Done**,
+the segment's completed history. The **⋮** menu renames, edits the
+description, recolors, changes its kind (with a short explanation of what
+each one means), sets or edits a project's estimated finish date, hides,
+archives/restores, or permanently deletes the segment.
 
 Three more destinations sit in the persistent bottom tab bar alongside
 Dashboard, per §3.4's "clear navigation between Dashboard, Upcoming,

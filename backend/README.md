@@ -28,12 +28,17 @@ to show.
 `reminders`, `integrations`, `activity_log`. Every mutating request writes
 an `activity_log` row.
 
-Two fields go beyond the doc's own table, added for the client's follow-up
-design feedback: `segments.description` (shown on its card) and
-`segments.kind` — `'ongoing'` (a standing part of life, never "finishes") or
-`'project'` (a temporary effort with a start and a finish, which gets its
-own turtle progress path on the dashboard and in segment detail, driven by
-`completed / total` tasks in that segment — slow and steady, not a race).
+Three fields go beyond the doc's own table, added for the client's
+follow-up design feedback: `segments.description` (shown on its card),
+`segments.kind` — one of `'permanent'` (a standing part of life, no finish
+line), `'routine'` (a steady cadence, also no finish line, but distinct
+enough from "permanent" to badge separately), or `'project'` (a temporary
+effort with an actual start and finish) — and `segments.target_date`, a
+project's own optional estimated finish date. Only a `'project'` gets the
+turtle progress path, shown on the dashboard and in segment detail, driven
+by `completed / total` tasks in that segment (slow and steady, not a race);
+`target_date` labels the finish end of that same path and is cleared
+automatically if the segment's kind changes away from `'project'`.
 
 ## The task-state engine
 

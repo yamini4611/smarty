@@ -97,6 +97,13 @@
   .segcard-count { font-size: 12px; font-weight: 700; }
   .segcard-count .n { font-variant-numeric: tabular-nums; }
   .segcard-calm { font-size: 12.5px; color: var(--done); font-weight: 700; margin-top: 14px; }
+  .segcard-tasks { margin-top: 14px; display: flex; flex-direction: column; gap: 9px; }
+  .segcard-task { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .segcard-task-title { font-size: 13px; font-weight: 600; color: var(--ink); }
+  .segcard-task-title.done { text-decoration: line-through; color: var(--faint); font-weight: 500; }
+  .segcard-task-pri { flex: none; font-size: 10.5px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+  .segcard-more { font-size: 11.5px; color: var(--faint); font-weight: 600; }
+  .segcard-empty { font-size: 12.5px; color: var(--faint); font-style: italic; }
 
   /* Simple rows — used in sheets and onboarding lists, not the dashboard's own cards */
   .segrow { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--rule); width: 100%; }
@@ -174,8 +181,10 @@
   .turtle-post { position: absolute; top: 50%; width: 9px; height: 9px; border-radius: 50%; margin-top: -4.5px; background: var(--edge); }
   .turtle-post.start { left: 11px; }
   .turtle-post.finish { right: 11px; background: var(--accent); }
-  .turtle-icon { position: absolute; top: 50%; transform: translate(-50%, -62%); font-size: 22px; line-height: 1; transition: left 0.4s ease; }
-  .turtle-caption { display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 700; color: var(--faint); letter-spacing: 0.03em; text-transform: uppercase; margin-top: 2px; }
+  .turtle-icon { position: absolute; top: 50%; transform: translate(-50%, -60%); font-size: 26px; line-height: 1; transition: left 0.5s cubic-bezier(.34,1.4,.64,1); filter: drop-shadow(0 1px 1px rgba(58,51,43,0.15)); }
+  .turtle-caption { display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 700; color: var(--faint); letter-spacing: 0.03em; text-transform: uppercase; margin-top: 2px; gap: 6px; }
+  .turtle-caption span:last-child { text-align: right; }
+  .turtle-eta { font-size: 11.5px; color: var(--dim); margin-top: 2px; font-weight: 600; }
 </style>
 <div id="phone"><div id="root"></div></div>
 <script>
@@ -213,6 +222,15 @@
   function segTint(color) { var i = SEG_PALETTE.indexOf(color); return i > -1 ? SEG_TINTS[i] : 'var(--accent-tint)'; }
   var ICON_EMOJI = { briefcase: '💼', home: '🏡', heart: '💚', wallet: '💳', hammer: '🔨', book: '📘', plane: '✈️', family: '👪', star: '⭐' };
   function segEmoji(s) { return ICON_EMOJI[s.icon] || '🌿'; }
+
+  // A segment is one of three kinds, chosen at setup and changeable later.
+  // Only a project gets the turtle — it's the one kind with an actual finish.
+  var KIND_META = {
+    project:   { label: 'Project', badgeBg: 'var(--accent-tint)', badgeFg: 'var(--accent-deep)', blurb: 'Has a finish line — shows a little path from start to done, and you can set when you’re aiming to get there.' },
+    routine:   { label: 'Routine', badgeBg: '#e3eeec', badgeFg: '#3e6b65', blurb: 'A steady cadence, not a to-do list — it never really "finishes," it just keeps being tended.' },
+    permanent: { label: null,      badgeBg: null,       badgeFg: null,     blurb: 'A standing part of life. No finish line, no set cadence — just there whenever something comes up.' }
+  };
+  function kindOf(s) { return KIND_META[s.kind] ? s.kind : 'permanent'; }
 
   var SUGGESTED_SEGMENTS = ['Work', 'Education', 'Health', 'Finances', 'Home', 'Family', 'Travel', 'Personal'];
   var AGE_RANGES = ['18 to 24', '25 to 34', '35 to 44', '45 to 54', '55 plus', 'Prefer not to say'];
@@ -446,47 +464,80 @@
   function turtleTrack(s) {
     var total = s.overdue + s.approaching + s.pending + s.completed;
     var pct = total ? Math.round(100 * s.completed / total) : 0;
-    var pos = Math.max(5, Math.min(95, pct));
+    var pos = Math.max(6, Math.min(94, pct));
+    var finishLabel = s.target_date ? monDate(new Date(s.target_date + 'T00:00:00')) : 'Finish';
+    var etaNote = s.target_date ? (function () {
+      var n = daysFrom(s.target_date);
+      if (n < 0) return 'Aimed to finish ' + Math.abs(n) + 'd ago';
+      if (n === 0) return 'Aiming to finish today';
+      return 'Aiming to finish in ' + n + 'd';
+    })() : '';
     return '<div class="turtle-wrap">' +
-      '<div class="turtle-caption"><span>Start</span><span>' + pct + '% of the way there</span><span>Finish</span></div>' +
+      '<div class="turtle-caption"><span>Start</span><span>' + pct + '% of the way there</span><span>' + finishLabel + '</span></div>' +
       '<div class="turtle-track">' +
         '<div class="turtle-path"></div>' +
         '<div class="turtle-post start"></div>' +
         '<div class="turtle-post finish"></div>' +
         '<div class="turtle-icon" style="left:' + pos + '%">🐢</div>' +
       '</div>' +
+      (etaNote ? '<div class="turtle-eta">' + etaNote + '</div>' : '') +
     '</div>';
   }
 
-  function segmentCard(s) {
-    var isProject = s.kind === 'project';
-    var openCount = s.overdue + s.approaching + s.pending;
-    var totalCount = openCount + s.completed;
-    var calm = !isProject && !openCount;
+  var PRIORITY_WORD = { high: 'High', low: 'Low' };
+  function priorityWord(p) { return PRIORITY_WORD[p] || 'Medium'; }
+  function priorityColor(p) { return p === 'high' ? 'var(--overdue)' : p === 'low' ? 'var(--faint)' : 'var(--pending)'; }
+
+  // What a segment's card shows isn't just counts — it's the actual next
+  // tasks, each tagged by priority, so the box reads as work to do, not an
+  // abstract number. `filter` narrows which state's tasks are previewed
+  // without ever hiding the card itself.
+  function taskPreview(s, filter, limit) {
+    if (filter === 'completed') {
+      var done = S.tasks.filter(function (t) { return t.segment_id === s.id && t.status === 'completed'; })
+        .sort(function (a, b) { return new Date(b.completed_at || 0) - new Date(a.completed_at || 0); });
+      if (!done.length) return '<div class="segcard-empty">Nothing completed here yet.</div>';
+      return done.slice(0, limit).map(function (t) {
+        return '<div class="segcard-task"><span class="segcard-task-title done">' + esc(t.title) + '</span></div>';
+      }).join('') + (done.length > limit ? '<div class="segcard-more">+' + (done.length - limit) + ' more</div>' : '');
+    }
+    var open = S.tasks.filter(function (t) { return t.segment_id === s.id && t.status === 'open'; });
+    if (filter && filter !== 'all') open = open.filter(function (t) { return taskState(t) === filter; });
+    open = open.sort(function (a, b) {
+      var rank = { overdue: 0, approaching: 1, pending: 2 };
+      var ra = rank[taskState(a)], rb = rank[taskState(b)];
+      if (ra !== rb) return ra - rb;
+      return (b.priority === 'high') - (a.priority === 'high');
+    });
+    if (!open.length) {
+      var word = filter && filter !== 'all' ? filter : null;
+      return '<div class="segcard-empty">' + (word ? 'Nothing ' + word + ' here.' : 'Nothing open — add a task whenever you’re ready.') + '</div>';
+    }
+    var shown = open.slice(0, limit);
+    var rows = shown.map(function (t) {
+      return '<div class="segcard-task"><span class="segcard-task-title">' + esc(t.title) + '</span>' +
+        '<span class="segcard-task-pri" style="color:' + priorityColor(t.priority) + '">' + priorityWord(t.priority) + '</span></div>';
+    }).join('');
+    var more = open.length - shown.length;
+    return rows + (more > 0 ? '<div class="segcard-more">+' + more + ' more</div>' : '');
+  }
+
+  function segmentCard(s, filter) {
+    var kind = kindOf(s);
+    var meta = KIND_META[kind];
     return '<button class="segcard" data-act="open-segment" data-v="' + s.id + '">' +
       '<div class="segcard-head">' +
         '<div class="segcard-icon" style="background:' + segTint(s.color) + '">' + segEmoji(s) + '</div>' +
         '<div style="flex:1;min-width:0">' +
           '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
             '<div class="segcard-name">' + esc(s.name) + '</div>' +
-            (isProject ? '<span class="segcard-badge" style="background:var(--accent-tint);color:var(--accent-deep)">Project</span>' : '') +
+            (meta.label ? '<span class="segcard-badge" style="background:' + meta.badgeBg + ';color:' + meta.badgeFg + '">' + meta.label + '</span>' : '') +
           '</div>' +
           (s.description ? '<div class="segcard-desc">' + esc(s.description) + '</div>' : '') +
         '</div>' +
       '</div>' +
-      (isProject ? (
-        turtleTrack(s) +
-        (totalCount === 0 ? '<div class="segcard-calm" style="color:var(--dim)">Add a first task to get this moving</div>'
-          : openCount ? '<div class="segcard-calm" style="color:var(--dim)">' + openCount + ' task' + (openCount === 1 ? '' : 's') + ' left to go</div>'
-          : '<div class="segcard-calm">Finished — every task is done</div>')
-      ) : (
-        '<div class="segcard-counts">' +
-          (s.overdue ? '<span class="segcard-count" style="color:var(--overdue)"><span class="n">' + s.overdue + '</span> overdue</span>' : '') +
-          (s.approaching ? '<span class="segcard-count" style="color:var(--approaching)"><span class="n">' + s.approaching + '</span> approaching</span>' : '') +
-          (s.pending ? '<span class="segcard-count" style="color:var(--pending)"><span class="n">' + s.pending + '</span> pending</span>' : '') +
-        '</div>' +
-        (calm ? '<div class="segcard-calm">' + svg(IC.check, 12, 'var(--done)', 3) + ' All caught up here</div>' : '')
-      )) +
+      (kind === 'project' ? turtleTrack(s) : '') +
+      '<div class="segcard-tasks">' + taskPreview(s, filter, kind === 'project' ? 2 : 3) + '</div>' +
     '</button>';
   }
 
@@ -579,16 +630,22 @@
         '<p class="lede" style="margin-top:8px">This is the working list — nothing is locked in.</p>' +
         (list.length ? sectionHead('YOUR SEGMENTS', list.length) : '') +
         list.map(function (c, i) {
+          var kind = c.kind || 'permanent';
           return '<div class="segrow" style="cursor:default;flex-direction:column;align-items:stretch;gap:8px">' +
             '<div style="display:flex;align-items:center;gap:12px">' +
               dot(c.color) +
               '<input class="text-in" data-act="rename-segment" data-v="' + i + '" value="' + esc(c.name) + '" style="flex:1;border-bottom:none;padding:0;font-weight:600">' +
               '<button data-act="remove-segment" data-v="' + i + '" class="label" style="color:var(--overdue)">REMOVE</button>' +
             '</div>' +
-            '<div style="display:flex;gap:6px;padding-left:23px">' +
-              '<button class="opt" style="padding:5px 11px;font-size:11.5px" aria-pressed="' + (c.kind !== 'project') + '" data-act="set-chosen-kind" data-i="' + i + '" data-v="ongoing">Ongoing</button>' +
-              '<button class="opt" style="padding:5px 11px;font-size:11.5px" aria-pressed="' + (c.kind === 'project') + '" data-act="set-chosen-kind" data-i="' + i + '" data-v="project">Temporary project</button>' +
+            '<div style="display:flex;gap:6px;padding-left:23px;flex-wrap:wrap">' +
+              '<button class="opt" style="padding:5px 11px;font-size:11.5px" aria-pressed="' + (kind === 'permanent') + '" data-act="set-chosen-kind" data-i="' + i + '" data-v="permanent">Permanent</button>' +
+              '<button class="opt" style="padding:5px 11px;font-size:11.5px" aria-pressed="' + (kind === 'routine') + '" data-act="set-chosen-kind" data-i="' + i + '" data-v="routine">Routine</button>' +
+              '<button class="opt" style="padding:5px 11px;font-size:11.5px" aria-pressed="' + (kind === 'project') + '" data-act="set-chosen-kind" data-i="' + i + '" data-v="project">Temporary project</button>' +
             '</div>' +
+            (kind === 'project' ? '<div style="padding-left:23px;display:flex;align-items:center;gap:8px">' +
+              '<span class="label" style="font-size:10px">EST. FINISH</span>' +
+              '<input type="date" data-act="set-chosen-target" data-i="' + i + '" value="' + (c.target_date || '') + '" class="text-in" style="border-bottom:none;font-size:12.5px;width:auto;flex:none">' +
+            '</div>' : '') +
           '</div>';
         }).join('') +
         '<div class="segrow" style="align-items:center;gap:10px">' +
@@ -788,7 +845,8 @@
         '<button class="segrow" data-act="rename-segment-prompt" data-v="' + s.id + '"><span class="task-title">Rename</span></button>' +
         '<button class="segrow" data-act="redescribe-segment" data-v="' + s.id + '"><span class="task-title">Edit description</span></button>' +
         '<button class="segrow" data-act="recolor-segment" data-v="' + s.id + '"><span class="task-title">Change color</span></button>' +
-        '<button class="segrow" data-act="toggle-segment-kind" data-v="' + s.id + '"><span class="task-title">' + (s.kind === 'project' ? 'Make it an ongoing segment' : 'Make it a temporary project') + '</span></button>' +
+        '<button class="segrow" data-act="open-sheet" data-v="segment-kind" data-sv="' + s.id + '"><span class="task-title">Change kind — currently ' + (KIND_META[kindOf(s)].label || 'Permanent') + '</span></button>' +
+        (kindOf(s) === 'project' ? '<button class="segrow" data-act="redate-segment" data-v="' + s.id + '"><span class="task-title">Edit estimated finish</span></button>' : '') +
         (s.status === 'hidden'
           ? '<button class="segrow" data-act="show-segment" data-v="' + s.id + '"><span class="task-title">Unhide</span></button>'
           : '<button class="segrow" data-act="hide-segment" data-v="' + s.id + '"><span class="task-title">Hide from dashboard</span></button>') +
@@ -796,6 +854,21 @@
           ? '<button class="segrow" data-act="restore-segment" data-v="' + s.id + '"><span class="task-title">Restore</span></button>'
           : '<button class="segrow" data-act="archive-segment" data-v="' + s.id + '"><span class="task-title">Archive</span></button>') +
         '<button class="segrow" data-act="delete-segment" data-v="' + s.id + '"><span class="task-title" style="color:var(--overdue)">Delete permanently</span></button>' +
+      '</div>';
+  };
+  SHEETS['segment-kind'] = function () {
+    var s = segmentById(S.sheetV);
+    if (!s) return '';
+    var current = kindOf(s);
+    return '<div class="head" style="padding:16px 20px 0;border-bottom:none"><div class="label">WHAT KIND OF SEGMENT IS THIS?</div></div>' +
+      '<div class="scroll pad-bottom" style="margin-top:6px">' +
+        ['permanent', 'routine', 'project'].map(function (k) {
+          var m = KIND_META[k];
+          return '<button class="segrow" style="align-items:flex-start" data-act="set-segment-kind" data-v="' + k + '" data-sv="' + s.id + '">' +
+            '<div style="flex:1"><div class="task-title">' + (m.label || 'Permanent') + (k === current ? ' ✓' : '') + '</div>' +
+            '<div class="segcard-desc" style="margin-top:2px">' + m.blurb + '</div></div>' +
+          '</button>';
+        }).join('') +
       '</div>';
   };
   SHEETS['global-reminder'] = function () {
@@ -832,11 +905,10 @@
     var name = S.user.display_name ? S.user.display_name.split(' ')[0] : '';
     var hour = TODAY.getHours();
     var greet = (hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening') + (name ? ', ' + esc(name) : '');
+    // Every segment stays on screen regardless of filter — the boxes are the
+    // stable anchor of the dashboard. A filter only narrows which tasks show
+    // inside each one, so nothing you're tracking ever seems to vanish.
     var shown = d.segments;
-    if (S.filter === 'overdue') shown = shown.filter(function (s) { return s.overdue > 0; });
-    if (S.filter === 'approaching') shown = shown.filter(function (s) { return s.approaching > 0; });
-    if (S.filter === 'pending') shown = shown.filter(function (s) { return s.pending > 0; });
-    if (S.filter === 'completed') shown = shown.filter(function (s) { return s.completed > 0; });
 
     return '<div class="head">' +
         '<div class="head-row">' +
@@ -863,7 +935,7 @@
         }).join('') +
       '</div>' +
       '<div class="scroll pad-bottom">' +
-        (shown.length ? shown.map(segmentCard).join('') : '<p class="empty-note">No segments match this filter.</p>') +
+        (shown.length ? shown.map(function (s) { return segmentCard(s, S.filter); }).join('') : '<p class="empty-note">No active segments yet.</p>') +
         '<button class="segrow" data-act="new-segment-quick" style="color:var(--accent)">' + svg(IC.plus, 15, 'var(--accent)') + '<span class="task-title" style="color:var(--accent)">Add segment</span></button>' +
       '</div>' +
       '<button class="fab" data-act="go" data-v="add-task">' + svg(IC.plus, 22, '#fff', 2.2) + '</button>' +
@@ -903,7 +975,8 @@
     var s = segmentById(S.openSegmentId);
     if (!s) { go('dashboard'); return ''; }
     var ds = decorateSegment(s);
-    var isProject = s.kind === 'project';
+    var kind = kindOf(s);
+    var meta = KIND_META[kind];
     var open = S.tasks.filter(function (t) { return t.segment_id === s.id && t.status === 'open'; }).sort(function (a, b) {
       var rank = { overdue: 0, approaching: 1, pending: 2 };
       return rank[taskState(a)] - rank[taskState(b)];
@@ -919,14 +992,14 @@
             '<div style="flex:1;min-width:0">' +
               '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
                 '<div class="segcard-name" style="font-size:18px">' + esc(s.name) + '</div>' +
-                (isProject ? '<span class="segcard-badge" style="background:var(--accent-tint);color:var(--accent-deep)">Project</span>' : '') +
+                (meta.label ? '<span class="segcard-badge" style="background:' + meta.badgeBg + ';color:' + meta.badgeFg + '">' + meta.label + '</span>' : '') +
               '</div>' +
               (s.description ? '<div class="segcard-desc" style="font-size:13px">' + esc(s.description) + '</div>' : '<div class="segcard-desc" style="font-size:13px;font-style:italic">No description yet.</div>') +
             '</div>' +
             '<button data-act="open-sheet" data-v="segment-menu" data-sv="' + s.id + '" style="padding:4px;margin:-4px -4px 0 0">' + svg('M12 5h.01M12 12h.01M12 19h.01', 18, 'var(--faint)', 2.4) + '</button>' +
           '</div>' +
-          (isProject ? turtleTrack(ds) : '') +
-          '<div class="segcard-counts" style="margin-top:' + (isProject ? '16' : '16') + 'px">' +
+          (kind === 'project' ? turtleTrack(ds) : '') +
+          '<div class="segcard-counts" style="margin-top:16px">' +
             (ds.overdue ? '<span class="segcard-count" style="color:var(--overdue)"><span class="n">' + ds.overdue + '</span> overdue</span>' : '') +
             (ds.approaching ? '<span class="segcard-count" style="color:var(--approaching)"><span class="n">' + ds.approaching + '</span> approaching</span>' : '') +
             (ds.pending ? '<span class="segcard-count" style="color:var(--pending)"><span class="n">' + ds.pending + '</span> pending</span>' : '') +
@@ -944,8 +1017,9 @@
   };
 
   SCREENS['new-segment'] = function () {
-    var d = S.newSegment || { name: '', description: '', kind: 'ongoing', color: SEG_PALETTE[S.segments.length % SEG_PALETTE.length] };
+    var d = S.newSegment || { name: '', description: '', kind: 'permanent', target_date: null, color: SEG_PALETTE[S.segments.length % SEG_PALETTE.length] };
     S.newSegment = d;
+    var kind = d.kind || 'permanent';
     return backHeader('New segment', 'go', 'dashboard') +
       '<div class="scroll pad-bottom">' +
         '<input class="text-in" id="ns-name-in" placeholder="Segment name" value="' + esc(d.name) + '" style="font-size:17px;font-weight:600;margin-top:14px">' +
@@ -953,10 +1027,16 @@
         '<textarea class="note-in" id="ns-desc-in" placeholder="A line about it, so you remember why it’s here…" style="margin-top:6px">' + esc(d.description) + '</textarea>' +
         sectionHead('KIND') +
         '<div class="pillrow">' +
-          '<button class="opt" aria-pressed="' + (d.kind !== 'project') + '" data-act="set-newsegment-kind" data-v="ongoing">Ongoing part of life</button>' +
-          '<button class="opt" aria-pressed="' + (d.kind === 'project') + '" data-act="set-newsegment-kind" data-v="project">Temporary project</button>' +
+          '<button class="opt" aria-pressed="' + (kind === 'permanent') + '" data-act="set-newsegment-kind" data-v="permanent">Permanent</button>' +
+          '<button class="opt" aria-pressed="' + (kind === 'routine') + '" data-act="set-newsegment-kind" data-v="routine">Routine</button>' +
+          '<button class="opt" aria-pressed="' + (kind === 'project') + '" data-act="set-newsegment-kind" data-v="project">Temporary project</button>' +
         '</div>' +
-        '<p class="lede" style="font-size:12px;margin-top:8px">' + (d.kind === 'project' ? 'A project has a finish line — you’ll see it as a little path from start to done.' : 'Ongoing segments don’t “finish” — they just stay tended.') + '</p>' +
+        '<p class="lede" style="font-size:12px;margin-top:8px">' + KIND_META[kind].blurb + '</p>' +
+        (kind === 'project' ? (
+          sectionHead('ESTIMATED FINISH', 'OPTIONAL') +
+          '<input type="date" id="ns-target-in" class="text-in" value="' + (d.target_date || '') + '" style="margin-top:4px">' +
+          '<p class="lede" style="font-size:12px;margin-top:6px">The turtle still moves by tasks completed — this just marks where you’re aiming.</p>'
+        ) : '') +
         sectionHead('COLOR') +
         '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">' + SEG_PALETTE.map(function (c) {
           return '<button data-act="set-newsegment-color" data-v="' + c + '" style="width:32px;height:32px;border-radius:50%;background:' + c + ';border:2.5px solid ' + (d.color === c ? 'var(--ink)' : 'transparent') + '"></button>';
@@ -1226,9 +1306,10 @@
       var list = S.chosenSegments;
       if (!list.length) return;
       var create = function (c) {
-        var kind = c.kind === 'project' ? 'project' : 'ongoing';
-        if (API) return call('POST', '/api/segments', { name: c.name, color: c.color, kind: kind }).then(function (s) { S.segments.push(s); });
-        S.segments.push({ id: newId('sg'), user_id: 'u1', name: c.name, description: '', icon: null, color: c.color, kind: kind, sort_order: S.segments.length, status: 'active', archived_at: null, created_at: new Date().toISOString() });
+        var kind = ['project', 'routine'].indexOf(c.kind) > -1 ? c.kind : 'permanent';
+        var targetDate = kind === 'project' ? (c.target_date || null) : null;
+        if (API) return call('POST', '/api/segments', { name: c.name, color: c.color, kind: kind, target_date: targetDate }).then(function (s) { S.segments.push(s); });
+        S.segments.push({ id: newId('sg'), user_id: 'u1', name: c.name, description: '', icon: null, color: c.color, kind: kind, target_date: targetDate, sort_order: S.segments.length, status: 'active', archived_at: null, created_at: new Date().toISOString() });
         return Promise.resolve();
       };
       Promise.all(list.map(create)).then(function () {
@@ -1369,12 +1450,23 @@
       var desc = prompt('What’s this segment for?', s.description || '');
       if (desc !== null) { s.description = desc; saveLocal(); closeSheet(); if (API) call('PATCH', '/api/segments/' + s.id, { description: desc }); }
     },
-    'toggle-segment-kind': function (v) {
-      var s = segmentById(v);
-      s.kind = s.kind === 'project' ? 'ongoing' : 'project';
+    'set-segment-kind': function (v, el) {
+      var id = el.getAttribute('data-sv');
+      var s = segmentById(id);
+      s.kind = v;
+      if (v !== 'project') s.target_date = null;
       saveLocal(); closeSheet();
-      toast(s.kind === 'project' ? 'Now tracked as a project, with its own path to finished.' : 'Now an ongoing segment.');
-      if (API) call('PATCH', '/api/segments/' + s.id, { kind: s.kind });
+      toast(v === 'project' ? 'Now a project, with its own path to finished.' : v === 'routine' ? 'Now a routine.' : 'Now a permanent segment.');
+      if (API) call('PATCH', '/api/segments/' + s.id, { kind: v, target_date: s.target_date });
+    },
+    'redate-segment': function (v) {
+      var s = segmentById(v);
+      var d = prompt('Estimated finish (YYYY-MM-DD), or leave blank to clear:', s.target_date || '');
+      if (d !== null) {
+        s.target_date = d.trim() || null;
+        saveLocal(); closeSheet();
+        if (API) call('PATCH', '/api/segments/' + s.id, { target_date: s.target_date });
+      }
     },
     'hide-segment': function (v) {
       var s = segmentById(v); s.status = 'hidden'; saveLocal(); closeSheet();
@@ -1556,6 +1648,10 @@
   });
   document.addEventListener('input', function (e) {
     if (e.target.id === 'search-in') { S.search = e.target.value; render(); }
+    if (e.target.getAttribute && e.target.getAttribute('data-act') === 'set-chosen-target') {
+      S.chosenSegments[+e.target.getAttribute('data-i')].target_date = e.target.value || null;
+    }
+    if (e.target.id === 'ns-target-in') S.newSegment.target_date = e.target.value || null;
   });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && e.target.id === 'custom-segment-in') { e.preventDefault(); ACTS['add-custom-segment'](); }

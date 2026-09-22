@@ -16,11 +16,11 @@ function seed(today) {
   };
 
   const segments = [
-    { id: 's1', user_id: userId, name: 'Work', description: 'Everything that keeps the day job moving.', icon: 'briefcase', color: '#3B6FD9', kind: 'ongoing', sort_order: 0, status: 'active', archived_at: null, created_at: iso(-30) },
-    { id: 's2', user_id: userId, name: 'Home', description: 'Upkeep, bills, and the small things a home needs.', icon: 'home', color: '#D98324', kind: 'ongoing', sort_order: 1, status: 'active', archived_at: null, created_at: iso(-30) },
-    { id: 's3', user_id: userId, name: 'Health', description: 'Appointments and the routine stuff, before it’s urgent.', icon: 'heart', color: '#2E9E6C', kind: 'ongoing', sort_order: 2, status: 'active', archived_at: null, created_at: iso(-30) },
-    { id: 's4', user_id: userId, name: 'Finances', description: 'Bills, filings, and keeping an eye on savings.', icon: 'wallet', color: '#8654C7', kind: 'ongoing', sort_order: 3, status: 'active', archived_at: null, created_at: iso(-30) },
-    { id: 's5', user_id: userId, name: 'Kitchen Remodel', description: 'A proper project with an end in sight — new counters, cabinets, and a working sink by the end of the month.', icon: 'hammer', color: '#C1613F', kind: 'project', sort_order: 4, status: 'active', archived_at: null, created_at: iso(-18) }
+    { id: 's1', user_id: userId, name: 'Work', description: 'Everything that keeps the day job moving.', icon: 'briefcase', color: '#6F87A6', kind: 'permanent', target_date: null, sort_order: 0, status: 'active', archived_at: null, created_at: iso(-30) },
+    { id: 's2', user_id: userId, name: 'Home', description: 'Upkeep, bills, and the small things a home needs.', icon: 'home', color: '#C2913F', kind: 'permanent', target_date: null, sort_order: 1, status: 'active', archived_at: null, created_at: iso(-30) },
+    { id: 's3', user_id: userId, name: 'Health', description: 'The routine stuff, kept up on a steady cadence, before it’s urgent.', icon: 'heart', color: '#6E9075', kind: 'routine', target_date: null, sort_order: 2, status: 'active', archived_at: null, created_at: iso(-30) },
+    { id: 's4', user_id: userId, name: 'Finances', description: 'Bills, filings, and keeping an eye on savings.', icon: 'wallet', color: '#8878B0', kind: 'permanent', target_date: null, sort_order: 3, status: 'active', archived_at: null, created_at: iso(-30) },
+    { id: 's5', user_id: userId, name: 'Kitchen Remodel', description: 'A proper project with an end in sight — new counters, cabinets, and a working sink.', icon: 'hammer', color: '#C1613F', kind: 'project', target_date: iso(9), sort_order: 4, status: 'active', archived_at: null, created_at: iso(-18) }
   ];
 
   const tasks = [

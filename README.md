@@ -1,5 +1,33 @@
 # Ballast — a personal commitments dashboard
 
+> ### Current build: Smart Life Tracker (Project → Task), per the MVP requirements doc
+>
+> The active implementation now follows a formal MVP requirements document
+> (nine screens, a two-level Project/Task hierarchy, deterministic red/
+> yellow/green/gray status rules, a reminder hierarchy, one-way calendar
+> export, and voice/typed assistant guardrails) rather than the free-form
+> life-segments model described below. It supersedes the "Executive Brief"
+> prototype's information architecture while keeping its visual language.
+>
+> - **App:** [`prototype/tracker.html`](prototype/tracker.html) — all nine
+>   screens, working end to end, with a real client-side parser and status
+>   engine for the no-backend case.
+> - **Backend:** [`backend/`](backend/server.js) — Node + the built-in
+>   `node:sqlite`, no install step. See [`backend/README.md`](backend/README.md)
+>   for the data model, the status engine, the assistant, and every endpoint.
+> - **How to navigate it, screen by screen:**
+>   [`docs/NAVIGATION.md`](docs/NAVIGATION.md).
+> - **Run it:** `node backend/server.js`, then open `http://localhost:4000`
+>   (prints a LAN address too, for a phone on the same wifi). Or open
+>   `prototype/tracker.html` directly / share its published link — it works
+>   with no backend at all, keeping state in the browser.
+>
+> Everything below this point describes the earlier "personal life
+> segments" direction (`app/` and the Executive Brief mockups in `design/`)
+> and is kept as design history, not the current spec.
+
+---
+
 Ballast is a working prototype of the "Personal Commitments Manager" described
 in the product brief: a single, trustworthy place to capture the things a
 busy person is responsible for — across work, home, family, social life,

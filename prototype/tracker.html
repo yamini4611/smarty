@@ -264,6 +264,24 @@
   function segTint(color) { var i = SEG_PALETTE.indexOf(color); return i > -1 ? SEG_TINTS[i] : 'var(--accent-tint)'; }
   var ICON_EMOJI = { briefcase: '💼', home: '🏡', heart: '💚', wallet: '💳', hammer: '🔨', book: '📘', plane: '✈️', family: '👪', star: '⭐' };
   function segEmoji(s) { return ICON_EMOJI[s.icon] || '🌿'; }
+  // The eight onboarding suggestions get a fixed, relevant icon; anything
+  // typed by hand (a custom segment, or one renamed later) is matched by
+  // keyword against the same icon set, so it isn't stuck with the generic
+  // leaf just because it wasn't one of the presets.
+  var SUGGESTED_ICONS = { Work: 'briefcase', Education: 'book', Health: 'heart', Finances: 'wallet', Home: 'home', Family: 'family', Travel: 'plane', Personal: 'star' };
+  function inferIcon(name) {
+    var t = (name || '').toLowerCase();
+    if (/work|job|career|office|business/.test(t)) return 'briefcase';
+    if (/book|read|study|learn|educat|school|course|class|degree/.test(t)) return 'book';
+    if (/health|fitness|gym|workout|exercise|medical|doctor|dentist|wellness|therapy/.test(t)) return 'heart';
+    if (/financ|money|budget|bank|invest|saving|bill|tax|expense/.test(t)) return 'wallet';
+    if (/home|house|apartment|chore|clean|kitchen|garden/.test(t)) return 'home';
+    if (/famil|kid|child|parent|baby/.test(t)) return 'family';
+    if (/travel|trip|vacation|flight|holiday/.test(t)) return 'plane';
+    if (/hobby|hobbies|craft|music|art|game|personal/.test(t)) return 'star';
+    if (/build|remodel|renovat|repair|construct|fix/.test(t)) return 'hammer';
+    return SUGGESTED_ICONS[name] || null;
+  }
 
   // A segment is one of three kinds, chosen at setup and changeable later.
   // Only a project gets the turtle — it's the one kind with an actual finish.
@@ -276,8 +294,8 @@
 
   var SUGGESTED_SEGMENTS = ['Work', 'Education', 'Health', 'Finances', 'Home', 'Family', 'Travel', 'Personal'];
   var AGE_RANGES = ['18 to 24', '25 to 34', '35 to 44', '45 to 54', '55 plus', 'Prefer not to say'];
-  var LIFE_STAGES = ['Student', 'Working', 'Job seeking', 'Parent or caregiver', 'Homeowner or renter', 'Retired'];
-  var GOALS = ['Remember deadlines', 'Reduce stress', 'Organize multiple responsibilities', 'Build routines'];
+  var LIFE_STAGES = ['Student', 'Working', 'Job seeking', 'Parent or caregiver', 'Homeowner or renter', 'Retired', 'Other'];
+  var GOALS = ['Remember deadlines', 'Reduce stress', 'Organize multiple responsibilities', 'Build routines', 'Other'];
 
   var uidCounter = 1000;
   function newId(prefix) { return prefix + (++uidCounter); }
@@ -300,8 +318,10 @@
     draft: null,
     ageRange: null,
     lifeStages: [],
+    lifeStageOther: '',
     goals: [],
-    chosenSegments: [],          // { name, color, suggested }
+    goalOther: '',
+    chosenSegments: [],          // { name, color, icon, suggested }
     customSegment: '',
     user: { display_name: '', email: '' },
     settings: { reminderDefault: { mode: 'before', offsetDays: 1, atHour: 9 }, voiceSpoken: false, privateMode: false },
@@ -352,7 +372,12 @@
       call('GET', '/api/tasks'),
       call('GET', '/api/integrations')
     ]).then(function (r) {
-      S.user = r[0] || S.user;
+      // Merge, don't replace — the server's user record has no notion of
+      // which button was tapped to sign in, so a plain overwrite here was
+      // wiping the client-set `provider` field back out right after
+      // 'sign-in' set it, which is why the calendar step could never tell
+      // Google and Apple apart.
+      S.user = r[0] ? Object.assign({}, S.user, r[0]) : S.user;
       if (r[0]) {
         S.ageRange = r[0].age_range || null;
         try { S.lifeStages = JSON.parse(r[0].life_stage || '[]'); } catch (e) {}
@@ -448,6 +473,7 @@
       '<path d="' + path + '"/></svg>';
   }
   function dot(color, size) { return '<span class="segdot" style="width:' + (size || 11) + 'px;height:' + (size || 11) + 'px;background:' + color + '"></span>'; }
+  function calendarLabel() { return S.user.provider === 'apple' ? 'Apple Calendar' : S.user.provider === 'google' ? 'Google Calendar' : 'your calendar'; }
 
   function go(screen, opts) { S.screen = screen; if (opts) Object.assign(S, opts); render(); }
   function toast(msg) { S.toast = msg; render(); setTimeout(function () { if (S.toast === msg) { S.toast = null; render(); } }, 2600); }
@@ -602,7 +628,7 @@
   SCREENS['optional-calendar'] = function () {
     return backHeader('Calendar', 'go', 'welcome') +
       '<div class="scroll pad-bottom">' +
-        '<h1 class="display" style="font-size:22px;margin-top:16px">Want to connect a calendar?</h1>' +
+        '<h1 class="display" style="font-size:22px;margin-top:16px">Want to connect ' + calendarLabel() + '?</h1>' +
         '<p class="lede" style="margin-top:10px">Optional, and reversible any time from Settings. When it’s connected, you can choose to add a dated task to it — the tracker stays the source of truth, and nothing imports the other way.</p>' +
         '<div class="box" style="margin-top:18px">' +
           '<div class="label" style="margin-bottom:8px">WHAT WE’D USE IT FOR</div>' +
@@ -610,7 +636,7 @@
         '</div>' +
       '</div>' +
       '<div class="foot">' +
-        '<button class="btn btn-primary" data-act="connect-calendar">Connect Google Calendar</button>' +
+        '<button class="btn btn-primary" data-act="connect-calendar">Connect ' + calendarLabel() + '</button>' +
         '<button class="btn btn-quiet" data-act="go" data-v="about-you" style="text-align:center">Skip for now</button>' +
       '</div>';
   };
@@ -629,11 +655,13 @@
           var on = S.lifeStages.indexOf(a) > -1;
           return '<button class="opt" aria-pressed="' + on + '" data-act="toggle-stage" data-v="' + esc(a) + '">' + a + '</button>';
         }).join('') + '</div>' +
+        (S.lifeStages.indexOf('Other') > -1 ? '<input class="text-in" id="life-stage-other-in" placeholder="Tell us in your own words…" value="' + esc(S.lifeStageOther) + '" style="margin-top:10px">' : '') +
         sectionHead('MAIN GOAL', 'PICK ANY') +
         '<div class="pillrow">' + GOALS.map(function (a) {
           var on = S.goals.indexOf(a) > -1;
           return '<button class="opt" aria-pressed="' + on + '" data-act="toggle-goal" data-v="' + esc(a) + '">' + a + '</button>';
         }).join('') + '</div>' +
+        (S.goals.indexOf('Other') > -1 ? '<input class="text-in" id="goal-other-in" placeholder="Tell us in your own words…" value="' + esc(S.goalOther) + '" style="margin-top:10px">' : '') +
       '</div>' +
       '<div class="foot">' +
         '<button class="btn btn-primary" data-act="go" data-v="suggested-segments">Continue</button>' +
@@ -729,7 +757,7 @@
       '<div class="foot" style="flex-direction:row;gap:10px">' +
         '<button class="btn btn-outline" data-act="mic" style="flex:none;width:50px;display:flex;align-items:center;justify-content:center;padding:0">' + svg(IC.mic, 18, S.listening ? 'var(--overdue)' : 'var(--ink)') + '</button>' +
         '<button class="btn btn-primary" data-act="submit-onboard-say" style="flex:1">Add these tasks</button>' +
-      '</div>';
+      '</div>' + toastHtml();
   };
 
   function newDraftTask(segmentId) {
@@ -809,7 +837,7 @@
           '<button class="btn btn-outline" data-act="guide-again" style="flex:1">Add another</button>' +
           '<button class="btn btn-primary" data-act="go" data-v="dashboard" style="flex:1">Done</button>' +
         '</div>' : '') +
-      '</div>';
+      '</div>' + toastHtml();
   };
 
   SCREENS['add-task'] = function () {
@@ -863,7 +891,7 @@
       '<div class="foot" style="flex-direction:row;gap:10px">' +
         '<button class="btn btn-outline" data-act="mic" style="flex:none;width:50px;display:flex;align-items:center;justify-content:center;padding:0">' + svg(IC.mic, 18, S.listening ? 'var(--overdue)' : 'var(--ink)') + '</button>' +
         '<button class="btn btn-primary" data-act="submit-say" style="flex:1">Continue</button>' +
-      '</div>';
+      '</div>' + toastHtml();
   }
 
   function proposalsScreen() {
@@ -1208,7 +1236,7 @@
 
         sectionHead('CALENDAR') +
         '<div class="check-row">' +
-          '<div style="flex:1"><div class="task-title">Google Calendar</div><div class="task-meta" style="margin-top:2px">' + (S.integration.status === 'connected' ? 'Connected — one-way, tracker to calendar' : 'Not connected') + '</div></div>' +
+          '<div style="flex:1"><div class="task-title">' + calendarLabel() + '</div><div class="task-meta" style="margin-top:2px">' + (S.integration.status === 'connected' ? 'Connected — one-way, tracker to calendar' : 'Not connected') + '</div></div>' +
           '<button class="btn btn-outline" data-act="toggle-calendar" style="width:auto;padding:7px 13px;font-size:12px">' + (S.integration.status === 'connected' ? 'Disconnect' : 'Connect') + '</button>' +
         '</div>' +
 
@@ -1365,6 +1393,10 @@
       if (val('task-title-in') !== undefined) S.draft.title = val('task-title-in');
       if (val('task-notes-in') !== undefined) S.draft.notes = val('task-notes-in');
     }
+    if (S.screen === 'about-you') {
+      if (val('life-stage-other-in') !== undefined) S.lifeStageOther = val('life-stage-other-in');
+      if (val('goal-other-in') !== undefined) S.goalOther = val('goal-other-in');
+    }
     if (S.captureFlow === 'listen' && val('capture-in') !== undefined) S.draft = val('capture-in');
     if (S.screen === 'voice-guide' && val('guide-in') !== undefined) S.draft = val('guide-in');
     if (S.screen === 'onboard-capture' && val('onboard-say-in') !== undefined) S.draft = val('onboard-say-in');
@@ -1409,6 +1441,12 @@
       }
       if (v === 'voice-guide') { S.guide = newGuide(); S.draft = ''; }
       if (v === 'dashboard') S.openSegmentId = null;
+      if (v === 'suggested-segments' && S.screen === 'about-you') {
+        var lsi = S.lifeStages.indexOf('Other');
+        if (lsi > -1) { if (S.lifeStageOther.trim()) S.lifeStages[lsi] = S.lifeStageOther.trim(); else S.lifeStages.splice(lsi, 1); }
+        var gi = S.goals.indexOf('Other');
+        if (gi > -1) { if (S.goalOther.trim()) S.goals[gi] = S.goalOther.trim(); else S.goals.splice(gi, 1); }
+      }
       go(v);
     },
     'tab': function (v) { S.captureFlow = null; if (v === 'dashboard') S.openSegmentId = null; go(v); },
@@ -1416,7 +1454,7 @@
     'select-suggestion': function (v) {
       var i = S.chosenSegments.map(function (c) { return c.name; }).indexOf(v);
       if (i > -1) S.chosenSegments.splice(i, 1);
-      else S.chosenSegments.push({ name: v, color: SEG_PALETTE[S.chosenSegments.length % SEG_PALETTE.length] });
+      else S.chosenSegments.push({ name: v, color: SEG_PALETTE[S.chosenSegments.length % SEG_PALETTE.length], icon: SUGGESTED_ICONS[v] || inferIcon(v) });
       render();
     },
     'rename-segment': function () { /* live edit; synced on demand */ },
@@ -1424,7 +1462,7 @@
     'set-chosen-kind': function (v, el) { syncFields(); S.chosenSegments[+el.getAttribute('data-i')].kind = v; render(); },
     'add-custom-segment': function () {
       var v = (S.customSegment || '').trim();
-      if (v) S.chosenSegments.push({ name: v, color: SEG_PALETTE[S.chosenSegments.length % SEG_PALETTE.length] });
+      if (v) S.chosenSegments.push({ name: v, color: SEG_PALETTE[S.chosenSegments.length % SEG_PALETTE.length], icon: inferIcon(v) });
       S.customSegment = '';
       render();
     },
@@ -1434,8 +1472,9 @@
       var create = function (c) {
         var kind = ['project', 'routine'].indexOf(c.kind) > -1 ? c.kind : 'permanent';
         var targetDate = kind === 'project' ? (c.target_date || null) : null;
-        if (API) return call('POST', '/api/segments', { name: c.name, color: c.color, kind: kind, target_date: targetDate }).then(function (s) { S.segments.push(s); });
-        S.segments.push({ id: newId('sg'), user_id: 'u1', name: c.name, description: '', icon: null, color: c.color, kind: kind, target_date: targetDate, sort_order: S.segments.length, status: 'active', archived_at: null, created_at: new Date().toISOString() });
+        var icon = c.icon || inferIcon(c.name);
+        if (API) return call('POST', '/api/segments', { name: c.name, color: c.color, icon: icon, kind: kind, target_date: targetDate }).then(function (s) { S.segments.push(s); });
+        S.segments.push({ id: newId('sg'), user_id: 'u1', name: c.name, description: '', icon: icon, color: c.color, kind: kind, target_date: targetDate, sort_order: S.segments.length, status: 'active', archived_at: null, created_at: new Date().toISOString() });
         return Promise.resolve();
       };
       Promise.all(list.map(create)).then(function () {
@@ -1491,9 +1530,10 @@
       var name = prompt('New segment name:');
       if (!name) return;
       var color = SEG_PALETTE[S.segments.length % SEG_PALETTE.length];
+      var icon = inferIcon(name);
       var create = function () {
-        if (API) return call('POST', '/api/segments', { name: name, color: color }).then(function (s) { S.segments.push(s); S.draft.segment_id = s.id; closeSheet(); });
-        var s = { id: newId('sg'), user_id: 'u1', name: name, icon: null, color: color, sort_order: S.segments.length, status: 'active', archived_at: null, created_at: new Date().toISOString() };
+        if (API) return call('POST', '/api/segments', { name: name, color: color, icon: icon }).then(function (s) { S.segments.push(s); S.draft.segment_id = s.id; closeSheet(); });
+        var s = { id: newId('sg'), user_id: 'u1', name: name, icon: icon, color: color, sort_order: S.segments.length, status: 'active', archived_at: null, created_at: new Date().toISOString() };
         S.segments.push(s); S.draft.segment_id = s.id; closeSheet();
       };
       create();
@@ -1554,9 +1594,10 @@
       syncFields();
       var d = S.newSegment;
       if (!d.name.trim()) return;
+      d.icon = inferIcon(d.name);
       var after = function (s) { toast('Segment created.'); saveLocal(); go('segment-detail', { openSegmentId: s.id }); };
       if (API) call('POST', '/api/segments', d).then(function (s) { S.segments.push(s); after(s); });
-      else { var s = Object.assign({ id: newId('sg'), user_id: 'u1', icon: null, sort_order: S.segments.length, status: 'active', archived_at: null, created_at: new Date().toISOString() }, d); S.segments.push(s); after(s); }
+      else { var s = Object.assign({ id: newId('sg'), user_id: 'u1', sort_order: S.segments.length, status: 'active', archived_at: null, created_at: new Date().toISOString() }, d); S.segments.push(s); after(s); }
     },
 
     'rename-segment-prompt': function (v) {
@@ -1779,7 +1820,8 @@
   function toggleMic() {
     if (S.listening) { stopMic(); return; }
     var Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Rec) { toast('Voice isn’t supported here — type instead.'); return; }
+    if (!Rec) { toast('Voice isn’t supported in this browser — type instead.'); return; }
+    if (!window.isSecureContext) { toast('Voice needs a secure connection (https) — type instead.'); return; }
     rec = new Rec();
     rec.continuous = true; rec.interimResults = true; rec.lang = 'en-GB';
     var base = S.draft || '';
@@ -1789,7 +1831,21 @@
       S.draft = (base ? base + ' ' : '') + t;
       render();
     };
-    rec.onerror = function () { stopMic(); };
+    // A silent onerror just left the mic looking broken with no explanation —
+    // surface what actually went wrong so "not-allowed" (permission blocked,
+    // the common case inside an embedded/sandboxed page) reads as a fixable
+    // instruction, not a dead button. "no-speech" fires routinely on a pause
+    // and isn't worth a toast.
+    rec.onerror = function (e) {
+      var code = e && e.error;
+      if (code !== 'no-speech') {
+        toast(code === 'not-allowed' || code === 'service-not-allowed' ? 'Microphone access is blocked — allow it in your browser’s site settings, or type instead.'
+          : code === 'audio-capture' ? 'No microphone found on this device — type instead.'
+          : code === 'network' ? 'Voice needs a network connection — type instead.'
+          : 'Voice ran into a problem — type instead.');
+      }
+      stopMic();
+    };
     rec.onend = function () { S.listening = false; render(); };
     try { rec.start(); S.listening = true; render(); } catch (e) { toast('Couldn’t start the microphone.'); }
   }

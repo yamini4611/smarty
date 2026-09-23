@@ -1543,6 +1543,13 @@
           return Promise.resolve();
         };
         return Promise.all(list.map(create)).then(function () {
+          // Clear the working list once it's actually been created — the
+          // back chevron on the next screen still points here, and without
+          // this, going back and tapping "Continue" again silently
+          // recreated every segment a second time (the onceSubmitting guard
+          // above only stops two taps racing in the same instant; it can't
+          // stop a genuine second visit after the first one finished).
+          S.chosenSegments = [];
           saveLocal();
           go('add-first-tasks');
         });

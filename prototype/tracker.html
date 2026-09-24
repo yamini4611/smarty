@@ -1534,7 +1534,16 @@
       var list = S.chosenSegments;
       if (!list.length) return;
       onceSubmitting('commit-segments', function () {
+        // The back chevron can lead all the way out to "suggested segments"
+        // and back in again (clearing chosenSegments doesn't stop that —
+        // it's several screens further back). Redoing that far, then
+        // re-picking an overlapping set, used to create a second real
+        // segment with the same name instead of reusing the one from the
+        // first pass — a name match against what's already active is
+        // treated the same as an explicit pick, not recreated.
         var create = function (c) {
+          var already = S.segments.filter(function (s) { return s.status === 'active' && s.name.trim().toLowerCase() === c.name.trim().toLowerCase(); })[0];
+          if (already) return Promise.resolve();
           var kind = ['project', 'routine'].indexOf(c.kind) > -1 ? c.kind : 'permanent';
           var targetDate = kind === 'project' ? (c.target_date || null) : null;
           var icon = c.icon || inferIcon(c.name);

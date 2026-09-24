@@ -110,12 +110,21 @@ description, recolors, changes its kind (with a short explanation of what
 each one means), sets or edits a project's estimated finish date, hides,
 archives/restores, or permanently deletes the segment.
 
-Three more destinations sit in the persistent bottom tab bar alongside
+Four more destinations sit in the persistent bottom tab bar alongside
 Dashboard, per §3.4's "clear navigation between Dashboard, Upcoming,
-Completed, and Settings":
+Completed, and Settings" — plus a Calendar tab added on later feedback,
+for the same tasks laid out by date instead of by state:
 
 - **Upcoming** — every open task across all segments, grouped Overdue /
   Approaching / Pending.
+- **Calendar** — a stat row (Today / Tomorrow / Next 7 days) for an
+  at-a-glance read on how loaded the week is, then a month grid where
+  every day carries a small colored dot per open task due that day (the
+  same priority palette as the dashboard tiles), so a busy day is visible
+  without opening it. Tapping a day shows its task list below the grid;
+  arrows step the grid a month at a time. This is the same open-task data
+  Upcoming shows, just organized by calendar date rather than by
+  overdue/approaching/pending.
 - **Completed** — this week's finished tasks, then everything earlier.
 - **Settings** — a "Start over" control at the very top, one tap and no
   confirmation dialog, that wipes the current run and returns to Welcome —

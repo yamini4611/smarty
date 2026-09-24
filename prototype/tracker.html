@@ -146,6 +146,26 @@
   .tile .n { font-family: var(--display); font-size: 23px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
   .tile .label { margin-top: 5px; }
 
+  /* Calendar tab — a month grid, each day showing a colored dot per open
+     task due that day (same priority palette as everywhere else), so the
+     whole month's load reads at a glance before drilling into one day. */
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; padding: 2px 2px 12px; }
+  .cal-nav button { padding: 6px; }
+  .cal-nav .month-label { font-family: var(--display); font-size: 16px; font-weight: 700; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .cal-dow { text-align: center; font-size: 10px; font-weight: 700; color: var(--faint); letter-spacing: 0.03em; padding-bottom: 6px; }
+  .cal-cell { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border-radius: 12px; background: transparent; border: 1.5px solid transparent; }
+  .cal-cell.empty { visibility: hidden; }
+  .cal-cell .daynum { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .cal-cell.is-today .daynum { color: var(--accent); }
+  .cal-cell.is-today { border-color: var(--accent); }
+  .cal-cell[aria-pressed="true"] { background: var(--ink); }
+  .cal-cell[aria-pressed="true"] .daynum { color: #fff; }
+  .cal-dots { display: flex; align-items: center; gap: 2px; height: 5px; }
+  .cal-dot { width: 5px; height: 5px; border-radius: 50%; flex: none; }
+  .cal-more { font-size: 8px; font-weight: 800; color: var(--dim); }
+  .cal-cell[aria-pressed="true"] .cal-more { color: #fff; opacity: 0.8; }
+
   .check-row { display: flex; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--rule); width: 100%; }
   .check { flex: none; width: 19px; height: 19px; border-radius: 6px; border: 1.8px solid var(--edge); background: var(--paper); display: flex; align-items: center; justify-content: center; }
   .check[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
@@ -202,7 +222,7 @@
   .guide-you { display: flex; justify-content: flex-end; margin-top: 12px; }
   .guide-you-bubble { background: var(--accent); color: #fff; border-radius: 16px 4px 16px 16px; padding: 10px 15px; font-size: 13.5px; max-width: 84%; }
 
-  .nav { flex: none; background: var(--paper); border-top: 1px solid var(--rule-hard); display: grid; grid-template-columns: repeat(4, 1fr); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .nav { flex: none; background: var(--paper); border-top: 1px solid var(--rule-hard); display: grid; grid-template-columns: repeat(5, 1fr); padding-bottom: env(safe-area-inset-bottom, 0px); }
   .nav button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 11px 4px 10px; }
   .nav .navlabel { font-size: 10px; font-weight: 700; color: var(--faint); }
   .nav button[aria-current="page"] .navlabel { color: var(--accent); }
@@ -236,6 +256,7 @@
   var DAYS = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
   var DAYS_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var MON_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   var WORDS = ['no','one','two','three','four','five','six','seven','eight','nine'];
 
   function d0(y, m, day) { return new Date(y, m, day); }
@@ -340,7 +361,9 @@
     segments: [],
     tasks: [],
     search: '',
-    guide: null   // the voice assistant's one-task-at-a-time conversation; see newGuide()
+    guide: null,   // the voice assistant's one-task-at-a-time conversation; see newGuide()
+    calMonth: null,        // the month the Calendar tab is showing; null = current month
+    calSelectedDate: null  // the selected day's ISO date; null = today
   };
 
   // ---------------------------------------------------------------- persistence
@@ -520,6 +543,7 @@
     var tabs = [
       { id: 'dashboard', label: 'DASHBOARD', icon: IC.home },
       { id: 'upcoming', label: 'UPCOMING', icon: IC.up },
+      { id: 'calendar', label: 'CALENDAR', icon: IC.calendar },
       { id: 'completed', label: 'COMPLETED', icon: IC.doneNav },
       { id: 'settings', label: 'SETTINGS', icon: IC.gear }
     ];
@@ -1140,6 +1164,71 @@
       navBar() + sheetOverlay() + toastHtml();
   };
 
+  // A month grid, each day carrying a colored dot per open task due that
+  // day (the same priority palette used everywhere else), so the whole
+  // month's load reads at a glance before tapping into one day's list.
+  SCREENS.calendar = function () {
+    var cm = S.calMonth || (S.calMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1));
+    var year = cm.getFullYear(), month = cm.getMonth();
+    var daysInMonth = new Date(year, month + 1, 0).getDate();
+    var startWeekday = new Date(year, month, 1).getDay();
+    var selected = S.calSelectedDate || isoOf(TODAY);
+
+    var openByDate = {};
+    S.tasks.forEach(function (t) {
+      if (t.status === 'open' && t.due_at) (openByDate[t.due_at] = openByDate[t.due_at] || []).push(t);
+    });
+
+    var cells = '';
+    for (var lead = 0; lead < startWeekday; lead++) cells += '<div class="cal-cell empty"></div>';
+    for (var d = 1; d <= daysInMonth; d++) {
+      var iso = isoOf(new Date(year, month, d));
+      var dayTasks = openByDate[iso] || [];
+      var isToday = iso === isoOf(TODAY);
+      cells += '<button class="cal-cell' + (isToday ? ' is-today' : '') + '" aria-pressed="' + (iso === selected) + '" data-act="select-cal-date" data-v="' + iso + '">' +
+        '<span class="daynum">' + d + '</span>' +
+        (dayTasks.length ? '<span class="cal-dots">' + dayTasks.slice(0, 3).map(function (t) { return '<span class="cal-dot" style="background:' + priorityColor(t.priority) + '"></span>'; }).join('') + (dayTasks.length > 3 ? '<span class="cal-more">+' + (dayTasks.length - 3) + '</span>' : '') + '</span>' : '<span class="cal-dots"></span>') +
+      '</button>';
+    }
+
+    var selTasks = (openByDate[selected] || []).slice().sort(function (a, b) {
+      var rank = { overdue: 0, approaching: 1, pending: 2 };
+      return rank[taskState(a)] - rank[taskState(b)];
+    });
+    var selDt = new Date(selected + 'T00:00:00');
+    var selLabel = selected === isoOf(TODAY) ? 'TODAY · ' + monDate(selDt).toUpperCase() : longDate(selDt).toUpperCase();
+
+    var tomorrowIso = isoOf(new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate() + 1));
+    var weekCount = 0;
+    for (var w = 0; w < 7; w++) weekCount += (openByDate[isoOf(new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate() + w))] || []).length;
+
+    return '<div class="head"><div class="head-row"><div class="wordmark">Calendar</div></div></div>' +
+      '<div class="scroll pad-bottom">' +
+        '<div style="padding:0 20px;background:var(--ground)">' +
+          '<div class="stats" style="background:var(--card);border-radius:20px;box-shadow:var(--shadow-sm);padding:14px 16px 12px">' +
+            tile((openByDate[isoOf(TODAY)] || []).length, 'TODAY', 'var(--accent)') +
+            tile((openByDate[tomorrowIso] || []).length, 'TOMORROW') +
+            tile(weekCount, 'NEXT 7 DAYS') +
+          '</div>' +
+        '</div>' +
+        '<div style="padding:0 20px">' +
+          '<div class="cal-nav">' +
+            '<button data-act="cal-prev-month" aria-label="Previous month">' + svg(IC.back, 18) + '</button>' +
+            '<div class="month-label">' + MON_FULL[month] + ' ' + year + '</div>' +
+            '<button data-act="cal-next-month" aria-label="Next month">' + svg(IC.chev, 18) + '</button>' +
+          '</div>' +
+          '<div class="cal-grid">' +
+            DAYS.map(function (d) { return '<div class="cal-dow">' + d.charAt(0) + '</div>'; }).join('') +
+            cells +
+          '</div>' +
+        '</div>' +
+        sectionHead(selLabel, selTasks.length) +
+        (selTasks.length ? selTasks.map(function (t) { return taskRow(t); }).join('') : '<p class="empty-note">Nothing due this day.</p>') +
+      '</div>' +
+      '<button class="fab" data-act="go" data-v="add-task">' + svg(IC.plus, 22, '#fff', 2.2) + '</button>' +
+      navBar() + sheetOverlay() + toastHtml();
+  };
+
   SCREENS.completed = function () {
     var done = S.tasks.filter(function (t) { return t.status === 'completed'; }).sort(function (a, b) { return new Date(b.completed_at || 0) - new Date(a.completed_at || 0); });
     var thisWeek = done.filter(function (t) { return t.completed_at && daysFrom(t.completed_at.slice(0, 10)) >= -7; });
@@ -1514,6 +1603,18 @@
       go(v);
     },
     'tab': function (v) { S.captureFlow = null; if (v === 'dashboard') S.openSegmentId = null; go(v); },
+
+    'cal-prev-month': function () {
+      var cm = S.calMonth || new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+      S.calMonth = new Date(cm.getFullYear(), cm.getMonth() - 1, 1);
+      render();
+    },
+    'cal-next-month': function () {
+      var cm = S.calMonth || new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+      S.calMonth = new Date(cm.getFullYear(), cm.getMonth() + 1, 1);
+      render();
+    },
+    'select-cal-date': function (v) { S.calSelectedDate = v; render(); },
 
     'select-suggestion': function (v) {
       var i = S.chosenSegments.map(function (c) { return c.name; }).indexOf(v);

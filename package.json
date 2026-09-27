@@ -1,0 +1,12 @@
+{
+  "name": "smart-life-tracker-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend for prototype/tracker.html — Node stdlib + node:sqlite only, no dependencies.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node backend/server.js"
+  }
+}

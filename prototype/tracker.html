@@ -345,6 +345,7 @@
     answerData: null,
     thinking: false,
     listening: false,
+    transcribing: false,  // uploading/awaiting a Whisper transcript, the record-and-upload fallback's "processing" beat
     speaking: false,
     draft: null,
     ageRange: null,
@@ -395,7 +396,15 @@
       method: method,
       headers: payload !== undefined ? { 'Content-Type': 'application/json' } : undefined,
       body: payload !== undefined ? JSON.stringify(payload) : undefined
-    }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error(r.status)); });
+    }).then(function (r) {
+      if (r.ok) return r.json();
+      // Carry the server's own { error: "..." } message when there is one,
+      // so a .catch() that actually shows this to the user (the voice
+      // upload flow) says something real instead of just a status code.
+      return r.json().catch(function () { return {}; }).then(function (body) {
+        return Promise.reject(new Error((body && body.error) || String(r.status)));
+      });
+    });
   }
 
   function loadFromApi() {
@@ -507,6 +516,11 @@
   }
   function dot(color, size) { return '<span class="segdot" style="width:' + (size || 11) + 'px;height:' + (size || 11) + 'px;background:' + color + '"></span>'; }
   function calendarLabel() { return S.user.provider === 'apple' ? 'Apple Calendar' : S.user.provider === 'google' ? 'Google Calendar' : 'your calendar'; }
+  // Shared across every mic label/button — one more state (transcribing)
+  // than before, for the record-and-upload fallback's upload+Whisper beat.
+  function micStatusLabel(defaultLabel) { return S.transcribing ? 'TRANSCRIBING…' : S.listening ? 'LISTENING…' : defaultLabel; }
+  function micStatusColor() { return S.transcribing || S.listening ? 'var(--overdue)' : 'var(--faint)'; }
+  function micButtonColor() { return S.transcribing || S.listening ? 'var(--overdue)' : 'var(--ink)'; }
 
   function go(screen, opts) { S.screen = screen; if (opts) Object.assign(S, opts); render(); }
   function toast(msg) { S.toast = msg; render(); setTimeout(function () { if (S.toast === msg) { S.toast = null; render(); } }, 2600); }
@@ -807,12 +821,12 @@
   SCREENS['onboard-capture'] = function () {
     return backHeader('Add first tasks', 'go', 'add-first-tasks') +
       '<div class="scroll pad-bottom" style="display:flex;flex-direction:column;height:100%">' +
-        '<div class="label" style="margin-top:16px;color:' + (S.listening ? 'var(--overdue)' : 'var(--faint)') + '">' + (S.listening ? 'LISTENING…' : 'TYPE OR TAP THE MIC') + '</div>' +
+        '<div class="label" style="margin-top:16px;color:' + micStatusColor() + '">' + micStatusLabel('TYPE OR TAP THE MIC') + '</div>' +
         '<textarea class="type-in" id="onboard-say-in" rows="4" placeholder="pay the electricity bill Friday, book dentist visit" style="margin-top:10px;flex:none">' + esc(S.draft || '') + '</textarea>' +
         '<div style="flex:1"></div>' +
       '</div>' +
       '<div class="foot" style="flex-direction:row;gap:10px">' +
-        '<button class="btn btn-outline" data-act="mic" style="flex:none;width:50px;display:flex;align-items:center;justify-content:center;padding:0">' + svg(IC.mic, 18, S.listening ? 'var(--overdue)' : 'var(--ink)') + '</button>' +
+        '<button class="btn btn-outline" data-act="mic"' + (S.transcribing ? ' disabled' : '') + ' style="flex:none;width:50px;display:flex;align-items:center;justify-content:center;padding:0">' + svg(IC.mic, 18, micButtonColor()) + '</button>' +
         '<button class="btn btn-primary" data-act="submit-onboard-say" style="flex:1">Add these tasks</button>' +
       '</div>' + toastHtml();
   };
@@ -838,7 +852,7 @@
         '<div class="guide-msg"><div class="guide-avatar">' + svg(IC.mic, 15, '#fff', 2.2) + '</div>' +
           '<div class="guide-bubble">Tell me what you need to add — I’ll figure out where it goes and check with you before saving anything.</div>' +
         '</div>' +
-        '<div class="label" style="margin-top:22px;color:' + (S.listening ? 'var(--overdue)' : 'var(--faint)') + '">' + (S.listening ? 'LISTENING…' : 'TYPE OR TAP THE MIC') + '</div>' +
+        '<div class="label" style="margin-top:22px;color:' + micStatusColor() + '">' + micStatusLabel('TYPE OR TAP THE MIC') + '</div>' +
         '<textarea class="type-in" id="guide-in" rows="3" placeholder="e.g. finish the Amazon application today" style="margin-top:8px">' + esc(S.draft || '') + '</textarea>';
     } else if (g.step === 'confirm-segment') {
       var guess = g.segmentGuess ? segmentById(g.segmentGuess) : null;
@@ -887,7 +901,7 @@
       '<div class="scroll pad-bottom">' + body + '</div>' +
       '<div class="foot">' +
         (g.step === 'listen' ? '<div style="display:flex;gap:10px">' +
-          '<button class="btn btn-outline" data-act="mic" style="flex:none;width:50px;display:flex;align-items:center;justify-content:center;padding:0">' + svg(IC.mic, 18, S.listening ? 'var(--overdue)' : 'var(--ink)') + '</button>' +
+          '<button class="btn btn-outline" data-act="mic"' + (S.transcribing ? ' disabled' : '') + ' style="flex:none;width:50px;display:flex;align-items:center;justify-content:center;padding:0">' + svg(IC.mic, 18, micButtonColor()) + '</button>' +
           '<button class="btn btn-primary" data-act="guide-submit" style="flex:1">Send</button>' +
         '</div>' : '') +
         (g.step === 'done' ? '<div style="display:flex;gap:10px">' +
@@ -940,13 +954,13 @@
   function captureListenScreen() {
     return backHeader('Quick add', 'go', S.tabBefore || 'dashboard') +
       '<div class="scroll pad-bottom" style="display:flex;flex-direction:column;height:100%">' +
-        '<div class="label" style="margin-top:16px;color:' + (S.listening ? 'var(--overdue)' : 'var(--faint)') + '">' + (S.listening ? 'LISTENING…' : 'TYPE, OR TAP THE MIC') + '</div>' +
+        '<div class="label" style="margin-top:16px;color:' + micStatusColor() + '">' + micStatusLabel('TYPE, OR TAP THE MIC') + '</div>' +
         '<textarea class="type-in" id="capture-in" rows="5" placeholder="e.g. Pay the electricity bill by Friday and remind me the day before" style="margin-top:10px;flex:none">' + esc(S.draft || '') + '</textarea>' +
         '<p class="lede" style="margin-top:8px;font-size:12.5px">Or ask a question — “what’s overdue?”, “what should I do next?”</p>' +
         '<div style="flex:1"></div>' +
       '</div>' +
       '<div class="foot" style="flex-direction:row;gap:10px">' +
-        '<button class="btn btn-outline" data-act="mic" style="flex:none;width:50px;display:flex;align-items:center;justify-content:center;padding:0">' + svg(IC.mic, 18, S.listening ? 'var(--overdue)' : 'var(--ink)') + '</button>' +
+        '<button class="btn btn-outline" data-act="mic"' + (S.transcribing ? ' disabled' : '') + ' style="flex:none;width:50px;display:flex;align-items:center;justify-content:center;padding:0">' + svg(IC.mic, 18, micButtonColor()) + '</button>' +
         '<button class="btn btn-primary" data-act="submit-say" style="flex:1">Continue</button>' +
       '</div>' + toastHtml();
   }
@@ -2037,11 +2051,28 @@
   }
 
   // ---------------------------------------------------------------- voice
+  // Two ways to turn speech into text, tried in order:
+  //  1. The Web Speech API's SpeechRecognition — instant, on-device, but
+  //     unsupported on every browser on iOS (they all run WebKit, which has
+  //     never implemented the recognition half of the spec).
+  //  2. Record-and-upload — records audio with MediaRecorder (which iOS
+  //     Safari does support) and posts it to the backend's Whisper-backed
+  //     /api/assistant/transcribe. Needs a live backend; there's nothing to
+  //     upload to in local/no-backend mode.
   var rec = null;
+  var mediaRec = null;
+  var mediaChunks = [];
+  var mediaStream = null;
+
   function toggleMic() {
-    if (S.listening) { stopMic(); return; }
+    if (S.listening || S.transcribing) { stopMic(); return; }
     var Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Rec) { toast('Voice isn’t supported in this browser — type instead.'); return; }
+    if (Rec) return startSpeechRecognition(Rec);
+    if (window.MediaRecorder && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) return startRecording();
+    toast('Voice isn’t supported in this browser — type instead.');
+  }
+
+  function startSpeechRecognition(Rec) {
     if (!window.isSecureContext) { toast('Voice needs a secure connection (https) — type instead.'); return; }
     rec = new Rec();
     rec.continuous = true; rec.interimResults = true; rec.lang = 'en-GB';
@@ -2070,7 +2101,68 @@
     rec.onend = function () { S.listening = false; render(); };
     try { rec.start(); S.listening = true; render(); } catch (e) { toast('Couldn’t start the microphone.'); }
   }
-  function stopMic() { if (rec) { try { rec.stop(); } catch (e) {} rec = null; } S.listening = false; render(); }
+
+  function startRecording() {
+    if (!API) { toast('Voice needs a live backend in this browser — type instead.'); return; }
+    if (!window.isSecureContext) { toast('Voice needs a secure connection (https) — type instead.'); return; }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      mediaStream = stream;
+      // iOS Safari only speaks audio/mp4; Chrome/Android only speak
+      // audio/webm — ask for whichever the browser actually supports
+      // rather than assuming one.
+      var candidates = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+      var mimeType = candidates.filter(function (t) { return window.MediaRecorder.isTypeSupported(t); })[0] || '';
+      mediaChunks = [];
+      try { mediaRec = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream); }
+      catch (e) { toast('Couldn’t start the microphone.'); stopStream(); return; }
+      mediaRec.ondataavailable = function (e) { if (e.data && e.data.size) mediaChunks.push(e.data); };
+      mediaRec.onstop = function () { var usedType = mediaRec ? mediaRec.mimeType : mimeType; mediaRec = null; uploadRecording(usedType); };
+      mediaRec.start();
+      S.listening = true; render();
+    }).catch(function (e) {
+      var name = e && e.name;
+      toast(name === 'NotAllowedError' || name === 'SecurityError' ? 'Microphone access is blocked — allow it in your browser’s site settings, or type instead.'
+        : name === 'NotFoundError' ? 'No microphone found on this device — type instead.'
+        : 'Couldn’t start the microphone.');
+    });
+  }
+
+  function uploadRecording(mimeType) {
+    var blob = new Blob(mediaChunks, { type: mimeType || 'audio/webm' });
+    mediaChunks = [];
+    stopStream();
+    S.listening = false;
+    if (!blob.size) { render(); return; }
+    S.transcribing = true; render();
+    var base = S.draft || '';
+    var reader = new FileReader();
+    reader.onloadend = function () {
+      var base64 = String(reader.result || '').split(',')[1] || '';
+      call('POST', '/api/assistant/transcribe', { audio: base64, mimeType: mimeType || 'audio/webm' })
+        .then(function (r) {
+          S.transcribing = false;
+          if (r && r.text) S.draft = (base ? base + ' ' : '') + r.text;
+          else toast('Didn’t catch that — try again, or type instead.');
+          render();
+        })
+        .catch(function (e) {
+          S.transcribing = false;
+          toast((e && e.message) || 'Transcription failed — type instead.');
+          render();
+        });
+    };
+    reader.readAsDataURL(blob);
+  }
+
+  function stopStream() { if (mediaStream) { mediaStream.getTracks().forEach(function (t) { t.stop(); }); mediaStream = null; } }
+
+  function stopMic() {
+    if (rec) { try { rec.stop(); } catch (e) {} rec = null; }
+    if (mediaRec && mediaRec.state !== 'inactive') { try { mediaRec.stop(); } catch (e) {} return; } // onstop drives the rest
+    mediaRec = null;
+    S.listening = false;
+    render();
+  }
 
   // Text-to-speech for the "visual plus spoken response" voice preference —
   // §6.4 says never read sensitive task details in private mode, only the

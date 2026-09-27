@@ -303,6 +303,35 @@ const server = http.createServer(async (req, res) => {
       const today = inBody.today ? new Date(inBody.today + 'T00:00:00') : new Date();
       return json(res, 200, assistant.answer(inBody.text || '', { today, segments: allSegments(), tasks: allTasks() }));
     }
+    // Real speech-to-text for browsers with no Web Speech API support
+    // (every browser on iOS, since they all run WebKit) — the client
+    // records audio instead and posts it here as base64. Requires an
+    // OPENAI_API_KEY in the environment; without one this just tells the
+    // client plainly rather than pretending to work.
+    if (p === '/api/assistant/transcribe' && m === 'POST') {
+      const key = process.env.OPENAI_API_KEY;
+      if (!key) return json(res, 501, { error: 'Voice transcription isn’t set up on this server yet (no OPENAI_API_KEY).' });
+      if (!inBody.audio) return json(res, 400, { error: 'No audio received.' });
+      try {
+        const buf = Buffer.from(inBody.audio, 'base64');
+        if (!buf.length) return json(res, 400, { error: 'No audio received.' });
+        const mime = inBody.mimeType || 'audio/webm';
+        const ext = mime.includes('mp4') ? 'mp4' : mime.includes('wav') ? 'wav' : mime.includes('ogg') ? 'ogg' : 'webm';
+        const form = new FormData();
+        form.append('file', new Blob([buf], { type: mime }), 'audio.' + ext);
+        form.append('model', 'whisper-1');
+        const r = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + key },
+          body: form
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) return json(res, 502, { error: (data.error && data.error.message) || 'Transcription failed.' });
+        return json(res, 200, { text: (data.text || '').trim() });
+      } catch (e) {
+        return json(res, 502, { error: 'Transcription failed.' });
+      }
+    }
 
     // ---- search ----------------------------------------------------------
     if (p === '/api/search' && m === 'GET') {

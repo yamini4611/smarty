@@ -113,6 +113,7 @@ input/output contract — the shape the client consumes doesn't change.
 | `GET /api/progress` | this week's completed tasks (FR14) |
 | `PUT /api/settings/reminder` / `PUT /api/settings/voice` / `PUT /api/settings/calendar` | reminder default, voice/private-mode prefs, calendar connection |
 | `POST /api/assistant/parse` / `POST /api/assistant/query` | the two assistant jobs above |
+| `POST /api/assistant/transcribe` | real speech-to-text (see below) — `{ audio: "<base64>", mimeType }` in, `{ text }` out |
 | `GET /api/search?q=` | FR13 |
 
 ```bash
@@ -126,6 +127,31 @@ curl -X POST localhost:4000/api/assistant/query \
   -H 'Content-Type: application/json' \
   -d '{"text":"what should I do next?","today":"2026-09-22"}'
 ```
+
+## Real voice on iPhone
+
+The mic button tries the browser's built-in `SpeechRecognition` API first —
+instant, on-device, no network call. That API has never shipped on iOS
+(every browser there runs WebKit, which doesn't implement the recognition
+half of the spec), so on an iPhone the app falls back to recording audio
+with `MediaRecorder` (which iOS Safari does support) and posting it to
+`POST /api/assistant/transcribe`, which forwards it to OpenAI's Whisper
+API and returns the text. Whichever path ran, the transcript lands in the
+same text field a typed capture would — everything downstream (date/time
+parsing, segment matching) is identical either way.
+
+This only works with:
+
+1. **`OPENAI_API_KEY` set in the environment.** Without it, `/api/assistant/transcribe`
+   returns a plain "not set up yet" error instead of pretending to work —
+   set it as an environment variable wherever the server actually runs;
+   never commit it to the repo.
+2. **A live backend your phone can actually reach over HTTPS** — the
+   published prototype link is a static page with no server behind it, so
+   this needs `node backend/server.js` running somewhere public, not just
+   on `localhost`. A free host that runs a plain Node `http` server with
+   zero config (Render, Railway, Fly.io all work) is enough — there's
+   nothing here that needs a framework or a build step.
 
 ## Without the server
 

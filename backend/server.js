@@ -15,6 +15,7 @@ const assistant = require('./assistant.js');
 
 const ROOT = path.join(__dirname, '..');
 const PAGE = path.join(ROOT, 'prototype', 'tracker.html');
+const ICONS_DIR = path.join(ROOT, 'prototype', 'icons');
 const PORT = parseInt(process.env.PORT || process.argv[2] || '4000', 10);
 
 let db = open();
@@ -78,6 +79,47 @@ function decorateSegment(s, tasks) {
   });
 }
 
+// ---------------------------------------------------------------- voice transcription
+
+async function transcribeWithOpenAI(buf, mime, key) {
+  const ext = mime.includes('mp4') ? 'mp4' : mime.includes('wav') ? 'wav' : mime.includes('ogg') ? 'ogg' : 'webm';
+  const form = new FormData();
+  form.append('file', new Blob([buf], { type: mime }), 'audio.' + ext);
+  form.append('model', 'whisper-1');
+  const r = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + key },
+    body: form
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((data.error && data.error.message) || 'Transcription failed.');
+  return (data.text || '').trim();
+}
+
+async function transcribeWithGemini(buf, mime, key) {
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + key;
+  const reqBody = {
+    contents: [{
+      parts: [
+        { text: 'Transcribe this audio recording exactly as spoken. Reply with only the transcript text, nothing else.' },
+        { inline_data: { mime_type: mime, data: buf.toString('base64') } }
+      ]
+    }]
+  };
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(reqBody)
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((data.error && data.error.message) || 'Transcription failed.');
+  const text = data.candidates && data.candidates[0] && data.candidates[0].content &&
+    data.candidates[0].content.parts && data.candidates[0].content.parts[0] &&
+    data.candidates[0].content.parts[0].text;
+  if (!text) throw new Error('Gemini returned no transcript for this audio format.');
+  return text.trim();
+}
+
 // ---------------------------------------------------------------- page
 
 function servePage(res) {
@@ -88,11 +130,38 @@ function servePage(res) {
     const doc = '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n' +
       '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n' +
       '<title>' + title + '</title>\n' +
+      '<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">\n' +
+      '<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">\n' +
+      '<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">\n' +
+      '<link rel="manifest" href="/manifest.json">\n' +
+      '<meta name="theme-color" content="#6e9075">\n' +
       '<style>html,body{height:100%}body{margin:0;background:#fafafa;-webkit-font-smoothing:antialiased}img{max-width:100%}[hidden]{display:none!important}</style>\n' +
       '</head>\n<body>\n' + (t ? html.replace(t[0], '') : html) + '\n</body>\n</html>';
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(doc);
   });
+}
+
+function serveIcon(res, filename) {
+  fs.readFile(path.join(ICONS_DIR, filename), (err, data) => {
+    if (err) { res.writeHead(404); return res.end('Not found'); }
+    res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' });
+    res.end(data);
+  });
+}
+
+function serveManifest(res) {
+  const manifest = {
+    name: 'Smarty', short_name: 'Smarty', start_url: '/', display: 'standalone',
+    background_color: '#f6f1e8', theme_color: '#6e9075',
+    icons: [
+      { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' }
+    ]
+  };
+  const s = JSON.stringify(manifest);
+  res.writeHead(200, { 'Content-Type': 'application/manifest+json', 'Content-Length': Buffer.byteLength(s), 'Cache-Control': 'public, max-age=86400' });
+  res.end(s);
 }
 
 // ---------------------------------------------------------------- routing
@@ -104,7 +173,9 @@ const server = http.createServer(async (req, res) => {
   if (m === 'OPTIONS') return json(res, 204, {});
   if (!p.startsWith('/api')) {
     if (p === '/' || p === '/index.html') return servePage(res);
-    if (p === '/favicon.ico') { res.writeHead(204); return res.end(); }
+    if (p === '/favicon.ico') return serveIcon(res, 'favicon-32.png');
+    if (p.startsWith('/icons/') && /^[a-z0-9.-]+$/i.test(p.slice(7))) return serveIcon(res, p.slice(7));
+    if (p === '/manifest.json') return serveManifest(res);
     res.writeHead(404); return res.end('Not found');
   }
   if (p !== '/api/health') console.log('  ' + m.padEnd(6) + p);
@@ -324,27 +395,24 @@ const server = http.createServer(async (req, res) => {
     // OPENAI_API_KEY in the environment; without one this just tells the
     // client plainly rather than pretending to work.
     if (p === '/api/assistant/transcribe' && m === 'POST') {
-      const key = process.env.OPENAI_API_KEY;
-      if (!key) return json(res, 501, { error: 'Voice transcription isn’t set up on this server yet (no OPENAI_API_KEY).' });
+      const geminiKey = process.env.GEMINI_API_KEY;
+      const openaiKey = process.env.OPENAI_API_KEY;
+      if (!geminiKey && !openaiKey) return json(res, 501, { error: 'Voice transcription isn’t set up on this server yet (set GEMINI_API_KEY or OPENAI_API_KEY).' });
       if (!inBody.audio) return json(res, 400, { error: 'No audio received.' });
       try {
         const buf = Buffer.from(inBody.audio, 'base64');
         if (!buf.length) return json(res, 400, { error: 'No audio received.' });
         const mime = inBody.mimeType || 'audio/webm';
-        const ext = mime.includes('mp4') ? 'mp4' : mime.includes('wav') ? 'wav' : mime.includes('ogg') ? 'ogg' : 'webm';
-        const form = new FormData();
-        form.append('file', new Blob([buf], { type: mime }), 'audio.' + ext);
-        form.append('model', 'whisper-1');
-        const r = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-          method: 'POST',
-          headers: { Authorization: 'Bearer ' + key },
-          body: form
-        });
-        const data = await r.json().catch(() => ({}));
-        if (!r.ok) return json(res, 502, { error: (data.error && data.error.message) || 'Transcription failed.' });
-        return json(res, 200, { text: (data.text || '').trim() });
+        // Gemini is preferred when both keys are set, since it's the one
+        // most recently asked for — but it's a general multimodal model
+        // doing transcription via a prompt, not a purpose-built speech
+        // model, and its documented audio inputs are WAV/MP3/AAC/OGG/FLAC,
+        // not the webm/mp4 a browser's MediaRecorder actually produces; if
+        // it rejects the format, that error comes back to the client as-is.
+        const text = geminiKey ? await transcribeWithGemini(buf, mime, geminiKey) : await transcribeWithOpenAI(buf, mime, openaiKey);
+        return json(res, 200, { text });
       } catch (e) {
-        return json(res, 502, { error: 'Transcription failed.' });
+        return json(res, 502, { error: e.message || 'Transcription failed.' });
       }
     }
 

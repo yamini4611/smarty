@@ -235,7 +235,8 @@
   .turtle-post { position: absolute; top: 50%; width: 9px; height: 9px; border-radius: 50%; margin-top: -4.5px; background: var(--edge); }
   .turtle-post.start { left: 11px; }
   .turtle-post.finish { right: 11px; background: var(--accent); }
-  .turtle-icon { position: absolute; top: 50%; transform: translate(-50%, -60%); font-size: 26px; line-height: 1; transition: left 0.5s cubic-bezier(.34,1.4,.64,1); filter: drop-shadow(0 1px 1px rgba(58,51,43,0.15)); }
+  .turtle-icon { position: absolute; top: 50%; transform: translate(-50%, -60%); width: 32px; line-height: 1; transition: left 0.5s cubic-bezier(.34,1.4,.64,1); filter: drop-shadow(0 1px 1px rgba(58,51,43,0.15)); }
+  .turtle-icon svg { display: block; width: 100%; height: auto; }
   .turtle-caption { display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 700; color: var(--faint); letter-spacing: 0.03em; text-transform: uppercase; margin-top: 2px; gap: 6px; }
   .turtle-caption span:last-child { text-align: right; }
   .turtle-eta { font-size: 11.5px; color: var(--dim); margin-top: 2px; font-weight: 600; }
@@ -245,7 +246,7 @@
   .turtle-wrap.mini .turtle-post { width: 6px; height: 6px; }
   .turtle-wrap.mini .turtle-post.start { left: 5px; }
   .turtle-wrap.mini .turtle-post.finish { right: 5px; }
-  .turtle-wrap.mini .turtle-icon { font-size: 15px; }
+  .turtle-wrap.mini .turtle-icon { width: 19px; }
   .turtle-wrap.mini .turtle-pct { font-size: 10.5px; font-weight: 700; color: var(--dim); margin-top: 1px; }
 </style>
 <div id="phone"><div id="root"></div></div>
@@ -624,6 +625,26 @@
     '</div>';
   }
 
+  // A little turtle matching the app's own logo — lavender shell, mint head
+  // and legs, the same warm-gray outline — instead of the generic 🐢 emoji,
+  // which renders differently (and off-palette) on every platform.
+  function turtleSvg() {
+    return '<svg viewBox="0 0 60 40" xmlns="http://www.w3.org/2000/svg">' +
+      '<path d="M8 28 Q3 30 6 34" stroke="#8FCDBB" stroke-width="2.5" stroke-linecap="round" fill="none"/>' +
+      '<rect x="9" y="30" width="7" height="8" rx="3" fill="#8FCDBB" stroke="#8B7E77" stroke-width="1.5"/>' +
+      '<rect x="37" y="30" width="7" height="8" rx="3" fill="#8FCDBB" stroke="#8B7E77" stroke-width="1.5"/>' +
+      '<rect x="7" y="25" width="37" height="6" rx="3" fill="#8C9AB5" stroke="#8B7E77" stroke-width="1.4"/>' +
+      '<path d="M7 27 Q5 9 26 7 Q45 7 45 27 Z" fill="#C7A8DC" stroke="#8B7E77" stroke-width="1.8" stroke-linejoin="round"/>' +
+      '<path d="M14 11 Q21 16 18 24" stroke="#8FCDBB" stroke-width="1.3" fill="none" stroke-linecap="round"/>' +
+      '<path d="M26 8 L26 25" stroke="#8FCDBB" stroke-width="1.3" fill="none" stroke-linecap="round"/>' +
+      '<path d="M37 11 Q31 16 33 24" stroke="#8FCDBB" stroke-width="1.3" fill="none" stroke-linecap="round"/>' +
+      '<path d="M9 18.5 L43 18.5" stroke="#8FCDBB" stroke-width="1.3" fill="none" stroke-linecap="round"/>' +
+      '<path d="M42 20 Q53 13 56 21 Q58 28 50 28 Q44 28 42 24 Z" fill="#8FCDBB" stroke="#8B7E77" stroke-width="1.8" stroke-linejoin="round"/>' +
+      '<circle cx="51.5" cy="21" r="2.4" fill="#F3D2C6"/>' +
+      '<circle cx="52.2" cy="19.8" r="1" fill="#5B5568"/>' +
+      '<path d="M48 25 Q50.5 26.6 53 25" stroke="#5B5568" stroke-width="1.1" fill="none" stroke-linecap="round"/>' +
+    '</svg>';
+  }
   // The turtle: a temporary project's own start-to-finish path. Position is
   // how much of the project's tasks are done — slow and steady, not a race.
   function turtleTrack(s, mini) {
@@ -641,7 +662,7 @@
         '<div class="turtle-path"></div>' +
         '<div class="turtle-post start"></div>' +
         '<div class="turtle-post finish"></div>' +
-        '<div class="turtle-icon" style="left:' + pos + '%">🐢</div>' +
+        '<div class="turtle-icon" style="left:' + pos + '%">' + turtleSvg() + '</div>' +
       '</div>';
     if (mini) {
       return '<div class="turtle-wrap mini">' + track + '<div class="turtle-pct">' + pct + '% · ' + finishLabel + '</div></div>';

@@ -46,17 +46,12 @@ function resolveDate(t, today) {
     if (delta === 0) delta = 7;
     return { date: add(delta) };
   }
+  // A bare weekday ("Friday") means the nearest upcoming one — today itself
+  // if today is that day — resolved outright, with no "which one did you
+  // mean" follow-up; say "next Friday" (above) to skip to the week after.
   if ((m = t.match(/\b(?:on |by )?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/))) {
-    let delta = (WD.indexOf(m[1]) - today.getDay() + 7) % 7;
-    if (delta === 0) delta = 7;
-    const nearest = add(delta);
-    const following = add(delta + 7);
-    return {
-      date: nearest,
-      ambiguous: true,
-      question: 'Do you mean this ' + cap(m[1]) + ' (' + fmt(nearest) + '), or the ' + cap(m[1]) + ' after (' + fmt(following) + ')?',
-      alt: following
-    };
+    const delta = (WD.indexOf(m[1]) - today.getDay() + 7) % 7;
+    return { date: add(delta) };
   }
   if ((m = t.match(/\b(?:on |by |the )(\d{1,2})(?:st|nd|rd|th)\b/))) {
     const day = parseInt(m[1], 10);
@@ -75,7 +70,7 @@ function resolveDate(t, today) {
 // minute) makes the hour unambiguous — "at 5" alone could be either 5am or
 // 5pm, and guessing wrong is worse than leaving it unset.
 function resolveTime(t) {
-  const m = t.match(/\bat\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i) || t.match(/\b(\d{1,2}):(\d{2})\s*(am|pm)?\b/i);
+  const m = t.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i) || t.match(/\b(\d{1,2}):(\d{2})\s*(am|pm)?\b/i);
   if (!m) return null;
   let h = parseInt(m[1], 10);
   const min = m[2] ? parseInt(m[2], 10) : 0;
@@ -121,7 +116,7 @@ function cleanTitle(raw) {
     .replace(/\b(tomorrow|today|tonight|next week|this month|end of the month)\b/gi, '')
     .replace(/\bin \d+ days?\b/gi, '')
     .replace(/\b(?:on |by |before )?the \d{1,2}(?:st|nd|rd|th)\b/gi, '')
-    .replace(/\bat\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/gi, '')
+    .replace(/\b(?:at\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/gi, '')
     .replace(/\b\d{1,2}:\d{2}\s*(?:am|pm)?\b/gi, '')
     .replace(/,?\s*\b(?:urgent|asap|immediately|critical|whenever|no rush|low priority)\b\.?/gi, '')
     .replace(/\s{2,}/g, ' ').replace(/\s+([,.])/g, '$1').replace(/[,\s]+$/, '').trim();

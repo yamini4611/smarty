@@ -141,12 +141,17 @@ for the same tasks laid out by date instead of by state:
 A task's reminder (in the add/edit form, or as a default in Settings) is
 one of: no reminder, at the deadline, 15/30/60 minutes before, a day
 before at 9:00, a fully custom date and time, or a weekly repeat — the
-same picker in both places. A dated task can also be exported for real:
-**Add to Google Calendar** opens Google's own pre-filled "quick add" page,
-and **Download for Apple Calendar (.ics)** hands over a real calendar file
-that opens straight into Apple Calendar's own add-event screen on iOS —
-both one-tap, one-way exports, needing no Google/Apple sign-in of their
-own.
+same picker in both places. A dated task is also offered to your calendar
+automatically, right when it's created — from the manual add form, a
+typed/spoken quick-add, onboarding's first tasks, or Mimi — with a one-tap
+**Add to Calendar** action in that moment's own confirmation (a toast, or
+right in Mimi's own reply), so there's nothing to turn on first. The same
+export stays available any time after, in the task's own edit screen:
+**Add to Google Calendar →** opens Google's own pre-filled "quick add"
+page, and **Download for Apple Calendar (.ics)** hands over a real
+calendar file that opens straight into Apple Calendar's own add-event
+screen on iOS — both one-tap, one-way exports, needing no Google/Apple
+sign-in of their own.
 
 The **＋** quick-add also answers direct questions in place — "what's
 overdue?", "what should I do next?" — with the matching tasks listed

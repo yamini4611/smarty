@@ -136,9 +136,14 @@ curl -X POST localhost:4000/api/assistant/query \
 
 ## Real calendar export
 
-"Add to calendar" on a dated task no longer creates a fake `mock_...` id —
-it produces a real event two ways, neither needing Google/Apple OAuth
-credentials (none exist in this environment):
+Every task-creation path (the manual add form, a typed/spoken quick-add,
+onboarding's first tasks, and Mimi) offers a dated task to your calendar
+automatically the moment it's saved — a one-tap "Add to Calendar" link
+right in that flow's own confirmation (a toast, or inline in Mimi's own
+reply), not a separate toggle or setting to turn on first. The same export
+also stays available afterward from the task's own edit screen. It's a real
+event, two ways, neither needing Google/Apple OAuth credentials (none exist
+in this environment):
 
 - **Add to Google Calendar →** opens Google's own "quick add" URL,
   pre-filled with the task's title, date/time, segment, and notes. No

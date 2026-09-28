@@ -1,4 +1,4 @@
-<title>Smart Life Tracker</title>
+<title>Smarty</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap">
 <style>
@@ -466,9 +466,41 @@
   function reminderLabel(r) {
     if (!r || r.mode === 'none') return 'No reminder';
     if (r.mode === 'at_deadline') return 'At the deadline';
+    if (r.mode === 'before_minutes') return (r.offsetMinutes === 60 ? '1 hour' : r.offsetMinutes + ' minutes') + ' before';
     if (r.mode === 'before') return (r.offsetDays || 1) + ' day' + ((r.offsetDays || 1) === 1 ? '' : 's') + ' before, ' + (r.atHour || 9) + ':00';
+    if (r.mode === 'custom' && r.at) { var p = r.at.split('T'); return 'On ' + monDate(new Date(p[0] + 'T00:00:00')) + (p[1] ? ', ' + timeLabel(p[1]) : ''); }
     if (r.mode === 'repeat') return 'Repeats ' + (r.repeatRule || 'weekly');
     return 'No reminder';
+  }
+  // Shared by the per-task and default-reminder sheets — same presets, same
+  // custom-time sub-form, wired to whichever ACT the caller names.
+  function reminderOptionsHtml(actName, current) {
+    var opts = [
+      ['none', 'No reminder'], ['at_deadline', 'At the deadline'],
+      ['before15', '15 minutes before'], ['before30', '30 minutes before'], ['before60', '1 hour before'],
+      ['before', '1 day before, 9:00'], ['repeat', 'Repeats weekly']
+    ];
+    return opts.map(function (o) { return '<button class="segrow" data-act="' + actName + '" data-v="' + o[0] + '"><span class="task-title">' + o[1] + '</span></button>'; }).join('') +
+      '<div class="segrow" style="align-items:center;gap:10px;flex-wrap:wrap">' +
+        '<span class="task-title" style="flex:1">Custom time</span>' +
+        '<input type="date" id="remind-date-in" class="text-in" style="border-bottom:none;font-size:12.5px;width:auto;flex:none" value="' + (S._remindDate || '') + '">' +
+        '<input type="time" id="remind-time-in" class="text-in" style="border-bottom:none;font-size:12.5px;width:auto;flex:none" value="' + (S._remindTime || '') + '">' +
+      '</div>' +
+      '<button class="segrow" data-act="' + actName + '" data-v="custom" style="color:var(--accent)"><span class="task-title" style="color:var(--accent)">Use this time</span></button>';
+  }
+  function reminderFromToken(v) {
+    if (v === 'none') return { mode: 'none' };
+    if (v === 'at_deadline') return { mode: 'at_deadline' };
+    if (v === 'before15') return { mode: 'before_minutes', offsetMinutes: 15 };
+    if (v === 'before30') return { mode: 'before_minutes', offsetMinutes: 30 };
+    if (v === 'before60') return { mode: 'before_minutes', offsetMinutes: 60 };
+    if (v === 'before') return { mode: 'before', offsetDays: 1, atHour: 9 };
+    if (v === 'repeat') return { mode: 'repeat', repeatRule: 'weekly' };
+    if (v === 'custom') {
+      if (!S._remindDate) { toast('Pick a date for the custom reminder first.'); return null; }
+      return { mode: 'custom', at: S._remindDate + 'T' + (S._remindTime || '09:00') };
+    }
+    return { mode: 'none' };
   }
   function effectiveReminder(t) { return (t && t.reminder) || S.settings.reminderDefault || { mode: 'none' }; }
 
@@ -516,6 +548,10 @@
   }
   function dot(color, size) { return '<span class="segdot" style="width:' + (size || 11) + 'px;height:' + (size || 11) + 'px;background:' + color + '"></span>'; }
   function calendarLabel() { return S.user.provider === 'apple' ? 'Apple Calendar' : S.user.provider === 'google' ? 'Google Calendar' : 'your calendar'; }
+  // First name only, for a personal touch in Mimi's own questions — never
+  // forced into copy where a name would read as stiff or repetitive.
+  function firstName() { return ((S.user.display_name || '').trim().split(/\s+/)[0]) || ''; }
+  function greetName() { var n = firstName(); return n ? ', ' + n : ''; }
   // Shared across every mic label/button — one more state (transcribing)
   // than before, for the record-and-upload fallback's upload+Whisper beat.
   function micStatusLabel(defaultLabel) { return S.transcribing ? 'TRANSCRIBING…' : S.listening ? 'LISTENING…' : defaultLabel; }
@@ -677,7 +713,7 @@
   SCREENS.welcome = function () {
     return '<div class="scroll pad-bottom" style="display:flex;flex-direction:column;height:100%;padding-top:56px">' +
       '<div style="flex:1">' +
-        '<div class="label" style="color:var(--accent)">SMART LIFE TRACKER</div>' +
+        '<div class="label" style="color:var(--accent)">SMARTY</div>' +
         '<h1 class="display" style="font-size:28px;margin:14px 0 0">One place to see what needs your attention.</h1>' +
         '<p class="lede" style="margin-top:14px">Sign in, tell us the parts of life you want to keep on top of, and get a dashboard that always shows what’s overdue, approaching, or just pending.</p>' +
       '</div>' +
@@ -710,6 +746,8 @@
       '<div class="scroll pad-bottom">' +
         '<h1 class="display" style="font-size:22px;margin-top:16px">A little about you</h1>' +
         '<p class="lede" style="margin-top:8px">Every answer here is optional and only shapes suggestions — nothing is required to continue.</p>' +
+        sectionHead('WHAT SHOULD MIMI CALL YOU?') +
+        '<input class="text-in" id="name-in" placeholder="Your first name" value="' + esc(S.user.display_name || '') + '" style="font-size:16px;margin-top:4px">' +
         sectionHead('AGE RANGE') +
         '<div class="pillrow">' + AGE_RANGES.map(function (a) {
           return '<button class="opt" aria-pressed="' + (S.ageRange === a) + '" data-act="set-age" data-v="' + esc(a) + '">' + a + '</button>';
@@ -850,7 +888,7 @@
     if (g.step === 'listen') {
       body =
         '<div class="guide-msg"><div class="guide-avatar">' + svg(IC.mic, 15, '#fff', 2.2) + '</div>' +
-          '<div class="guide-bubble">Tell me what you need to add — I’ll figure out where it goes and check with you before saving anything.</div>' +
+          '<div class="guide-bubble">Hi' + greetName() + ', I’m Mimi. Tell me what you need to add — I’ll figure out where it goes and check with you before saving anything.</div>' +
         '</div>' +
         '<div class="label" style="margin-top:22px;color:' + micStatusColor() + '">' + micStatusLabel('TYPE OR TAP THE MIC') + '</div>' +
         '<textarea class="type-in" id="guide-in" rows="3" placeholder="e.g. finish the Amazon application today" style="margin-top:8px">' + esc(S.draft || '') + '</textarea>';
@@ -860,8 +898,8 @@
         '<div class="guide-you"><div class="guide-you-bubble">“' + esc(g.heard) + '”</div></div>' +
         '<div class="guide-msg"><div class="guide-avatar">' + svg(IC.mic, 15, '#fff', 2.2) + '</div>' +
           '<div class="guide-bubble">' + (guess
-            ? 'Got it — “' + esc(g.title) + '.” I think that’s ' + dot(guess.color, 8) + ' <b>' + esc(guess.name) + '</b> — is that right?'
-            : 'Got it — “' + esc(g.title) + '.” Which segment should that go under?') + '</div>' +
+            ? 'Got it — “' + esc(g.title) + '.” I think that’s ' + dot(guess.color, 8) + ' <b>' + esc(guess.name) + '</b> — is that right' + greetName() + '?'
+            : 'Got it — “' + esc(g.title) + '.” Which segment should that go under' + greetName() + '?') + '</div>' +
         '</div>' +
         '<div class="pillrow" style="margin-top:14px;padding-left:44px">' +
           (guess ? '<button class="opt" style="background:var(--accent);border-color:var(--accent);color:#fff" data-act="guide-pick-segment" data-v="' + guess.id + '">Yes, ' + esc(guess.name) + '</button>' : '') +
@@ -873,7 +911,7 @@
       var seg = segmentById(g.segmentId);
       body =
         '<div class="guide-msg"><div class="guide-avatar">' + svg(IC.mic, 15, '#fff', 2.2) + '</div>' +
-          '<div class="guide-bubble">Filed under ' + dot(seg.color, 8) + ' <b>' + esc(seg.name) + '</b>. How important is this — high, medium, or low?</div>' +
+          '<div class="guide-bubble">Filed under ' + dot(seg.color, 8) + ' <b>' + esc(seg.name) + '</b>. How important is this' + greetName() + ' — high, medium, or low?</div>' +
         '</div>' +
         '<div class="pillrow" style="margin-top:14px;padding-left:44px">' +
           ['high', 'normal', 'low'].map(function (p) {
@@ -893,11 +931,11 @@
     } else if (g.step === 'done') {
       body =
         '<div class="guide-msg"><div class="guide-avatar">' + svg(IC.check, 15, '#fff', 2.6) + '</div>' +
-          '<div class="guide-bubble">Added “' + esc(g.createdTitle) + '” to <b>' + esc(g.createdSegment) + '</b>, ' + priorityWord(g.priority).toLowerCase() + ' priority' + (g.date ? ', ' + dueChip(g.date).text.toLowerCase() + (g.time ? ' at ' + timeLabel(g.time) : '') : '') + '. Anything else?</div>' +
+          '<div class="guide-bubble">Added “' + esc(g.createdTitle) + '” to <b>' + esc(g.createdSegment) + '</b>, ' + priorityWord(g.priority).toLowerCase() + ' priority' + (g.date ? ', ' + dueChip(g.date).text.toLowerCase() + (g.time ? ' at ' + timeLabel(g.time) : '') : '') + '. Anything else' + greetName() + '?</div>' +
         '</div>';
     }
 
-    return backHeader('Assistant', 'go', 'dashboard') +
+    return backHeader('Mimi', 'go', 'dashboard') +
       '<div class="scroll pad-bottom">' + body + '</div>' +
       '<div class="foot">' +
         (g.step === 'listen' ? '<div style="display:flex;gap:10px">' +
@@ -943,6 +981,14 @@
           '<div style="flex:1"><div class="task-title">Add to calendar</div><div class="task-meta" style="margin-top:2px">' + (S.integration.status === 'connected' ? 'Only if this task has a deadline' : 'Connect a calendar in Settings first') + '</div></div>' +
           '<button class="toggle" aria-checked="' + (d.calendarExport && d.due_at) + '" data-act="toggle-cal-export"' + (!d.due_at || S.integration.status !== 'connected' ? ' disabled' : '') + '><i></i></button>' +
         '</div>' +
+        (API && d.id && d.calendarExport && d.due_at ? (
+          '<div class="segrow" style="cursor:default;padding-left:0">' +
+            '<a href="' + esc(d.googleCalendarUrl || '#') + '" target="_blank" rel="noopener" class="task-title" style="color:var(--accent);flex:1">Add to Google Calendar →</a>' +
+          '</div>' +
+          '<div class="segrow" style="cursor:default;padding-left:0">' +
+            '<a href="' + API + '/api/tasks/' + d.id + '/calendar.ics" class="task-title" style="color:var(--accent);flex:1">Download for Apple Calendar (.ics)</a>' +
+          '</div>'
+        ) : '') +
       '</div>' +
       '<div class="foot">' +
         (d.id ? '<button class="btn btn-outline btn-danger" data-act="delete-task" data-v="' + d.id + '">Delete task</button>' : '') +
@@ -1048,11 +1094,8 @@
       '</div>';
   };
   SHEETS['pick-reminder'] = function () {
-    var opts = [['none', 'No reminder'], ['at_deadline', 'At the deadline'], ['before', '1 day before, 9:00'], ['repeat', 'Repeats weekly']];
     return '<div class="head" style="padding:16px 20px 0;border-bottom:none"><div class="label">REMINDER</div></div>' +
-      '<div class="scroll pad-bottom" style="margin-top:6px">' +
-        opts.map(function (o) { return '<button class="segrow" data-act="set-draft-reminder" data-v="' + o[0] + '"><span class="task-title">' + o[1] + '</span></button>'; }).join('') +
-      '</div>';
+      '<div class="scroll pad-bottom" style="margin-top:6px">' + reminderOptionsHtml('set-draft-reminder', S.draft.reminder) + '</div>';
   };
   SHEETS['segment-menu'] = function () {
     var s = segmentById(S.sheetV);
@@ -1089,11 +1132,8 @@
       '</div>';
   };
   SHEETS['global-reminder'] = function () {
-    var opts = [['none', 'No reminder'], ['at_deadline', 'At the deadline'], ['before', '1 day before, 9:00'], ['repeat', 'Repeats weekly']];
     return '<div class="head" style="padding:16px 20px 0;border-bottom:none"><div class="label">DEFAULT REMINDER</div></div>' +
-      '<div class="scroll pad-bottom" style="margin-top:6px">' +
-        opts.map(function (o) { return '<button class="segrow" data-act="set-global-reminder" data-v="' + o[0] + '"><span class="task-title">' + o[1] + '</span></button>'; }).join('') +
-      '</div>';
+      '<div class="scroll pad-bottom" style="margin-top:6px">' + reminderOptionsHtml('set-global-reminder', S.settings.reminderDefault) + '</div>';
   };
   SHEETS['export-data'] = function () {
     var jsonText = esc(JSON.stringify(snapshot(), null, 2));
@@ -1157,7 +1197,7 @@
           '<button class="seg-tile seg-tile-add" data-act="new-segment-quick">' + svg(IC.plus, 22, 'var(--accent)', 2.2) + '<span>Add segment</span></button>' +
         '</div>' +
       '</div>' +
-      '<button class="fab-guide" data-act="go" data-v="voice-guide" aria-label="Ask the assistant to add something">' + svg(IC.mic, 21, '#fff', 2) + '</button>' +
+      '<button class="fab-guide" data-act="go" data-v="voice-guide" aria-label="Ask Mimi to add something">' + svg(IC.mic, 21, '#fff', 2) + '</button>' +
       '<button class="fab" data-act="go" data-v="add-task" aria-label="Add task">' + svg(IC.plus, 22, '#fff', 2.2) + '</button>' +
       navBar() + sheetOverlay() + toastHtml();
   };
@@ -1558,6 +1598,7 @@
       if (val('task-notes-in') !== undefined) S.draft.notes = val('task-notes-in');
     }
     if (S.screen === 'about-you') {
+      if (val('name-in') !== undefined) S.user.display_name = val('name-in');
       if (val('life-stage-other-in') !== undefined) S.lifeStageOther = val('life-stage-other-in');
       if (val('goal-other-in') !== undefined) S.goalOther = val('goal-other-in');
     }
@@ -1578,6 +1619,10 @@
     if (S.sheet === 'pick-date') {
       if (val('exact-date-in')) S._exactDate = val('exact-date-in');
       if (val('exact-time-in') !== undefined) S._exactTime = val('exact-time-in');
+    }
+    if (S.sheet === 'pick-reminder' || S.sheet === 'global-reminder') {
+      if (val('remind-date-in') !== undefined) S._remindDate = val('remind-date-in');
+      if (val('remind-time-in') !== undefined) S._remindTime = val('remind-time-in');
     }
   }
 
@@ -1609,10 +1654,13 @@
       if (v === 'voice-guide') { S.guide = newGuide(); S.draft = ''; }
       if (v === 'dashboard') S.openSegmentId = null;
       if (v === 'suggested-segments' && S.screen === 'about-you') {
+        S.user.display_name = (S.user.display_name || '').trim();
         var lsi = S.lifeStages.indexOf('Other');
         if (lsi > -1) { if (S.lifeStageOther.trim()) S.lifeStages[lsi] = S.lifeStageOther.trim(); else S.lifeStages.splice(lsi, 1); }
         var gi = S.goals.indexOf('Other');
         if (gi > -1) { if (S.goalOther.trim()) S.goals[gi] = S.goalOther.trim(); else S.goals.splice(gi, 1); }
+        saveLocal();
+        if (API && S.user.display_name) call('PUT', '/api/profile', { display_name: S.user.display_name });
       }
       go(v);
     },
@@ -1733,6 +1781,11 @@
     'start-capture': function () { S.captureFlow = 'listen'; S.draft = ''; render(); },
     'open-sheet': function (v, el) {
       if (v === 'pick-date') { S._exactDate = S.draft.due_at || ''; S._exactTime = S.draft.due_time || ''; }
+      if (v === 'pick-reminder' || v === 'global-reminder') {
+        var r = v === 'pick-reminder' ? S.draft.reminder : S.settings.reminderDefault;
+        var parts = (r && r.mode === 'custom' && r.at) ? r.at.split('T') : ['', ''];
+        S._remindDate = parts[0]; S._remindTime = parts[1] || '';
+      }
       openSheet(v, el && el.getAttribute('data-sv'));
     },
     'close-sheet': function () { closeSheet(); },
@@ -1765,8 +1818,20 @@
       closeSheet();
     },
     'set-draft-reminder': function (v) {
-      S.draft.reminder = v === 'none' ? { mode: 'none' } : v === 'at_deadline' ? { mode: 'at_deadline' } : v === 'before' ? { mode: 'before', offsetDays: 1, atHour: 9 } : { mode: 'repeat', repeatRule: 'weekly' };
+      syncFields();
+      var r = reminderFromToken(v);
+      if (!r) return;
+      S.draft.reminder = r;
       closeSheet();
+    },
+    'set-global-reminder': function (v) {
+      syncFields();
+      var r = reminderFromToken(v);
+      if (!r) return;
+      S.settings.reminderDefault = r;
+      closeSheet();
+      saveLocal();
+      if (API) call('PUT', '/api/settings/reminder', r);
     },
     'toggle-cal-export': function () { if (!S.draft.due_at || S.integration.status !== 'connected') return; S.draft.calendarExport = !S.draft.calendarExport; render(); },
     'save-task': function () {
@@ -1793,7 +1858,7 @@
     },
     'open-task': function (v) {
       var t = taskById(v);
-      S.draft = { id: t.id, segment_id: t.segment_id, title: t.title, notes: t.notes, due_at: t.due_at, due_time: t.due_time || null, noDeadlineChosen: !t.due_at, priority: t.priority, reminder: t.reminder, calendarExport: !!t.calendar_event_id };
+      S.draft = { id: t.id, segment_id: t.segment_id, title: t.title, notes: t.notes, due_at: t.due_at, due_time: t.due_time || null, noDeadlineChosen: !t.due_at, priority: t.priority, reminder: t.reminder, calendarExport: !!t.calendar_event_id, googleCalendarUrl: t.googleCalendarUrl || null };
       S.captureFlow = null;
       S.tabBefore = S.openSegmentId ? 'segment-detail' : S.screen;
       go('add-task');

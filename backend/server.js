@@ -1,6 +1,6 @@
 'use strict';
 
-// Smart Life Tracker backend. Node's standard library plus the built-in
+// Smarty backend. Node's standard library plus the built-in
 // node:sqlite module only — no npm install, no external database.
 //   node backend/server.js          http://localhost:4000
 //   node backend/server.js 5000     pick a port
@@ -65,7 +65,8 @@ function decorateTask(t) {
     segmentName: seg ? seg.name : null,
     segmentColor: seg ? seg.color : null,
     state: taskState(t, now),
-    reminder: effectiveReminder(t, user)
+    reminder: effectiveReminder(t, user),
+    googleCalendarUrl: googleCalendarUrl(t, seg, user)
   });
 }
 
@@ -83,7 +84,7 @@ function servePage(res) {
   fs.readFile(PAGE, 'utf8', (err, html) => {
     if (err) { res.writeHead(500); return res.end('Cannot read prototype/tracker.html — run this from the repository.'); }
     const t = html.match(/<title>([\s\S]*?)<\/title>/i);
-    const title = t ? t[1].trim() : 'Smart Life Tracker';
+    const title = t ? t[1].trim() : 'Smarty';
     const doc = '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n' +
       '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n' +
       '<title>' + title + '</title>\n' +
@@ -124,11 +125,12 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/profile' && m === 'PUT') {
       const u = getUser();
       const fields = {
+        display_name: 'display_name' in inBody ? inBody.display_name : u.display_name,
         age_range: 'age_range' in inBody ? inBody.age_range : u.age_range,
         life_stage: 'life_stage' in inBody ? JSON.stringify(inBody.life_stage) : u.life_stage,
         goals: 'goals' in inBody ? JSON.stringify(inBody.goals) : u.goals
       };
-      db.prepare('UPDATE users SET age_range=?, life_stage=?, goals=? WHERE id=?').run(fields.age_range, fields.life_stage, fields.goals, u.id);
+      db.prepare('UPDATE users SET display_name=?, age_range=?, life_stage=?, goals=? WHERE id=?').run(fields.display_name, fields.age_range, fields.life_stage, fields.goals, u.id);
       return json(res, 200, getUser());
     }
 
@@ -215,11 +217,24 @@ const server = http.createServer(async (req, res) => {
         return json(res, 201, decorateTask(t));
       }
     }
-    const taskMatch = p.match(/^\/api\/tasks\/([^/]+)(?:\/(complete|reopen|archive|calendar-export))?$/);
+    const taskMatch = p.match(/^\/api\/tasks\/([^/]+)(?:\/(complete|reopen|archive|calendar-export|calendar\.ics))?$/);
     if (taskMatch) {
       const t = taskRow(taskMatch[1]);
       if (!t) return json(res, 404, { error: 'No such task' });
       const action = taskMatch[2];
+      if (action === 'calendar.ics' && m === 'GET') {
+        if (!t.due_at) return json(res, 400, { error: 'Only a task with a deadline can go on the calendar' });
+        const seg = segmentRow(t.segment_id);
+        const ics = icsForTask(t, seg);
+        const safeName = (t.title || 'task').replace(/[^a-z0-9]+/gi, '-').slice(0, 40) || 'task';
+        res.writeHead(200, {
+          'Content-Type': 'text/calendar; charset=utf-8',
+          'Content-Disposition': 'attachment; filename="' + safeName + '.ics"',
+          'Cache-Control': 'no-store',
+          'Access-Control-Allow-Origin': '*'
+        });
+        return res.end(ics);
+      }
       if (action === 'complete' && m === 'POST') {
         db.prepare('UPDATE tasks SET status=?, completed_at=? WHERE id=?').run('completed', new Date().toISOString(), t.id);
         log(db, USER_ID, 'task', t.id, 'completed');
@@ -349,9 +364,68 @@ const server = http.createServer(async (req, res) => {
 });
 
 function exportToCalendar(t) {
-  const eventId = t.calendar_event_id || 'gcal_mock_' + Math.random().toString(36).slice(2, 10);
+  const eventId = t.calendar_event_id || (t.id + '@smarty-tracker');
   db.prepare('UPDATE tasks SET calendar_event_id=? WHERE id=?').run(eventId, t.id);
   return taskRow(t.id);
+}
+
+// Real calendar export without needing Google/Apple OAuth (no credentials
+// for either exist in this environment): a downloadable .ics file opens
+// directly in Apple Calendar (and imports into Google/Outlook), and
+// Google's own "quick add" URL pre-fills an event with no auth at all.
+// Both are stateless, one-tap exports rather than a live, background sync.
+function icsEscape(s) {
+  return String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+}
+function nextDayIso(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function addMinutesToTime(hhmm, mins) {
+  const [h, m] = hhmm.split(':').map(Number);
+  const total = ((h * 60 + m + mins) % 1440 + 1440) % 1440;
+  return String(Math.floor(total / 60)).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0');
+}
+// Floating (no timezone) date/date-time, matching how the rest of the app
+// already treats due_at/due_time as plain local wall-clock values.
+function icsDates(t) {
+  if (!t.due_time) {
+    const start = t.due_at.replace(/-/g, '');
+    const end = nextDayIso(t.due_at).replace(/-/g, '');
+    return { allDay: true, dtstart: 'DTSTART;VALUE=DATE:' + start, dtend: 'DTEND;VALUE=DATE:' + end, startRaw: start, endRaw: end };
+  }
+  const datePart = t.due_at.replace(/-/g, '');
+  const startTime = t.due_time.replace(':', '') + '00';
+  const endTime = addMinutesToTime(t.due_time, 30).replace(':', '') + '00';
+  return { allDay: false, dtstart: 'DTSTART:' + datePart + 'T' + startTime, dtend: 'DTEND:' + datePart + 'T' + endTime, startRaw: datePart + 'T' + startTime, endRaw: datePart + 'T' + endTime };
+}
+function eventDetails(t, seg) {
+  return [seg ? seg.name : null, t.notes || null].filter(Boolean).join(' \u2014 ');
+}
+function icsForTask(t, seg) {
+  const d = icsDates(t);
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  const details = eventDetails(t, seg);
+  return [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Smarty//EN', 'CALSCALE:GREGORIAN',
+    'BEGIN:VEVENT',
+    'UID:' + (t.calendar_event_id || t.id + '@smarty-tracker'),
+    'DTSTAMP:' + stamp, d.dtstart, d.dtend,
+    'SUMMARY:' + icsEscape(t.title),
+    details ? 'DESCRIPTION:' + icsEscape(details) : null,
+    'END:VEVENT', 'END:VCALENDAR'
+  ].filter(Boolean).join('\r\n');
+}
+function googleCalendarUrl(t, seg, user) {
+  if (!t.due_at) return null;
+  const d = icsDates(t);
+  const params = new URLSearchParams({
+    action: 'TEMPLATE', text: t.title, dates: d.startRaw + '/' + d.endRaw,
+    details: eventDetails(t, seg)
+  });
+  if (!d.allDay && user && user.timezone) params.set('ctz', user.timezone);
+  return 'https://calendar.google.com/calendar/render?' + params.toString();
 }
 
 function dashboard() {
@@ -385,7 +459,7 @@ function progress() {
 server.listen(PORT, '0.0.0.0', () => {
   const lan = Object.values(os.networkInterfaces()).flat()
     .filter((n) => n && n.family === 'IPv4' && !n.internal).map((n) => n.address);
-  console.log('\n  Smart Life Tracker backend is running.\n');
+  console.log('\n  Smarty backend is running.\n');
   console.log('    on this computer   http://localhost:' + PORT);
   lan.forEach((ip) => console.log('    on your phone      http://' + ip + ':' + PORT + '   (same wifi)'));
   console.log('\n  Data lives in backend/data.sqlite — delete it to reset the demo.');

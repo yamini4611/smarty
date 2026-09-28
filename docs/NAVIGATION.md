@@ -1,4 +1,4 @@
-# Smart Life Tracker — screen-by-screen navigation
+# Smarty — screen-by-screen navigation
 
 This walks the eight core screens defined in the client UI requirements
 doc, in the order a real person moves through them: onboarding once, then
@@ -24,10 +24,12 @@ Google`, `Continue with Apple`, or `Already have an account? Sign in`.
 asking. `Connect Google Calendar` or `Skip for now`, and it's reversible any
 time from Settings either way.
 
-**3 · About you.** Age range (single choice), current life stage (multiple,
-tap to toggle), and your main goal (multiple) — every one optional, with a
-standing `Skip this` beneath the primary button. These only shape
-suggestions; nothing here is required to continue.
+**3 · About you.** What Mimi (the voice guide, §7) should call you, age
+range (single choice), current life stage (multiple, tap to toggle — with
+an "Other" option that opens a free-text field on both this and Main
+Goal), and your main goal (multiple) — every one optional, with a standing
+`Skip this` beneath the primary button. These only shape suggestions and
+personalize Mimi's own questions; nothing here is required to continue.
 
 **4 · Suggested segments.** Eight broad starting points — Work, Education,
 Health, Finances, Home, Family, Travel, Personal — each with its own color
@@ -90,12 +92,13 @@ always "Add segment."
 > Two floating buttons sit over the grid: a persistent circular **＋**
 > opens quick add — the same manual form as before, from here or from
 > Upcoming, by typing or speaking, exactly as the doc's "global quick-add...
-> from any dashboard state" asks for — and, beside it, a second **voice-
-> guide** button (a mic icon on its own tinted circle) that opens a
-> different, conversational flow: it takes what you say or type in one
-> shot ("add finish amazon application today"), proposes which segment it
-> thinks that belongs under, and waits for you to confirm or pick a
-> different one; then it asks for a priority level; then, only if the
+> from any dashboard state" asks for — and, beside it, a second button for
+> **Mimi**, the voice guide (a mic icon on its own tinted circle), that
+> opens a different, conversational flow: it takes what you say or type in
+> one shot ("add finish amazon application today"), proposes which segment
+> it thinks that belongs under, and waits for you to confirm or pick a
+> different one — addressing you by the name given in onboarding (§3) if
+> one was given; then it asks for a priority level; then, only if the
 > phrasing was genuinely date-ambiguous, confirms which date you meant —
 > and only after all of that does it actually create the task. Nothing is
 > saved until every step is confirmed.
@@ -129,11 +132,21 @@ for the same tasks laid out by date instead of by state:
 - **Settings** — a "Start over" control at the very top, one tap and no
   confirmation dialog, that wipes the current run and returns to Welcome —
   meant for testers doing repeated run-throughs, not a rare destructive
-  act; then profile and age range, the default reminder and notification
-  permission, voice preferences (read answers aloud, and a private mode
-  that keeps individual task details out of anything spoken), calendar
-  connection, and data controls (view your data as JSON, sign out, delete
-  the account).
+  act; then profile and age range, the default reminder (see below) and
+  notification permission, voice preferences (read answers aloud, and a
+  private mode that keeps individual task details out of anything spoken),
+  calendar connection, and data controls (view your data as JSON, sign
+  out, delete the account).
+
+A task's reminder (in the add/edit form, or as a default in Settings) is
+one of: no reminder, at the deadline, 15/30/60 minutes before, a day
+before at 9:00, a fully custom date and time, or a weekly repeat — the
+same picker in both places. A dated task can also be exported for real:
+**Add to Google Calendar** opens Google's own pre-filled "quick add" page,
+and **Download for Apple Calendar (.ics)** hands over a real calendar file
+that opens straight into Apple Calendar's own add-event screen on iOS —
+both one-tap, one-way exports, needing no Google/Apple sign-in of their
+own.
 
 The **＋** quick-add also answers direct questions in place — "what's
 overdue?", "what should I do next?" — with the matching tasks listed

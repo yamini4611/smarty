@@ -114,6 +114,7 @@ input/output contract — the shape the client consumes doesn't change.
 | `PUT /api/settings/reminder` / `PUT /api/settings/voice` / `PUT /api/settings/calendar` | reminder default, voice/private-mode prefs, calendar connection |
 | `POST /api/assistant/parse` / `POST /api/assistant/query` | the two assistant jobs above |
 | `POST /api/assistant/transcribe` | real speech-to-text (see below) — `{ audio: "<base64>", mimeType }` in, `{ text }` out |
+| `GET /api/tasks/:id/calendar.ics` | a real, downloadable calendar event for that task (see "Real calendar export" below) |
 | `GET /api/search?q=` | FR13 |
 
 ```bash
@@ -127,6 +128,27 @@ curl -X POST localhost:4000/api/assistant/query \
   -H 'Content-Type: application/json' \
   -d '{"text":"what should I do next?","today":"2026-09-22"}'
 ```
+
+## Real calendar export
+
+"Add to calendar" on a dated task no longer creates a fake `mock_...` id —
+it produces a real event two ways, neither needing Google/Apple OAuth
+credentials (none exist in this environment):
+
+- **Add to Google Calendar →** opens Google's own "quick add" URL,
+  pre-filled with the task's title, date/time, segment, and notes. No
+  sign-in flow of ours involved; the person just confirms it in Google's
+  own UI.
+- **Download for Apple Calendar (.ics)** — `GET /api/tasks/:id/calendar.ics`
+  returns a real iCalendar file. Opening it on iOS goes straight to Apple
+  Calendar's "Add Event" screen; the same file also imports into Google or
+  Outlook.
+
+Both are one-tap, stateless exports, not a live background sync — nothing
+is read back from either calendar, matching the "one-way, tracker to
+calendar" wording already in Settings. Times are floating (no timezone
+conversion), same as every other date/time in this app; the Google link
+adds `ctz=<user.timezone>` so Google renders it in the right zone anyway.
 
 ## Real voice on iPhone
 

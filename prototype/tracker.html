@@ -934,13 +934,15 @@
                '<div class="pillrow" style="margin-top:6px">' + activeSegments().map(function (sg) {
                  return '<button class="opt" data-act="set-draft-task-segment" data-i="' + i + '" data-v="' + sg.id + '">' + esc(sg.name) + '</button>';
                }).join('') + '</div>')) +
+            '<button data-act="open-sheet" data-v="pick-draft-task-reminder" data-sv="' + i + '" class="task-meta" style="color:var(--accent);margin-top:3px">Reminder: ' + reminderLabel(t.reminder) + '</button>' +
             '</div>' +
             '<button data-act="remove-draft-task" data-v="' + i + '" class="label" style="color:var(--overdue)">REMOVE</button></div>';
         }).join('') +
       '</div>' +
       '<div class="foot">' +
         '<button class="btn btn-primary" data-act="finish-onboarding"' + (!list.length || list.some(function (t) { return !t.segment_id; }) ? ' disabled' : '') + '>Go to my dashboard</button>' +
-      '</div>';
+      '</div>' +
+      sheetOverlay() + toastHtml();
   };
 
   SCREENS['onboard-capture'] = function () {
@@ -961,7 +963,7 @@
   }
 
   function newGuide() {
-    return { step: 'listen', heard: '', title: '', segmentId: null, segmentGuess: null, priority: null, date: null, time: null, dateGuess: null, followUp: null, alt: null, createdTitle: '', createdSegment: '', createdCalendarUrl: null };
+    return { step: 'listen', heard: '', title: '', segmentId: null, segmentGuess: null, priority: null, reminder: null, date: null, time: null, dateGuess: null, followUp: null, alt: null, createdTitle: '', createdSegment: '', createdCalendarUrl: null };
   }
 
   // ---------------------------------------------------------------- the voice guide
@@ -1005,6 +1007,16 @@
             return '<button class="opt" style="border-color:' + priorityColor(p) + ';color:' + priorityColor(p) + '" data-act="guide-pick-priority" data-v="' + p + '">' + priorityWord(p) + '</button>';
           }).join('') +
         '</div>';
+    } else if (g.step === 'confirm-reminder') {
+      body =
+        '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
+          '<div class="guide-bubble">Want a reminder for this' + greetName() + '?</div>' +
+        '</div>' +
+        '<div class="pillrow" style="margin-top:14px;padding-left:44px">' +
+          [['none', 'No reminder'], ['at_deadline', 'At the deadline'], ['before15', '15 min before'], ['before30', '30 min before'], ['before60', '1 hour before'], ['before', '1 day before'], ['repeat', 'Weekly']].map(function (o) {
+            return '<button class="opt" data-act="guide-pick-reminder" data-v="' + o[0] + '">' + o[1] + '</button>';
+          }).join('') +
+        '</div>';
     } else if (g.step === 'confirm-date') {
       body =
         '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
@@ -1018,7 +1030,7 @@
     } else if (g.step === 'done') {
       body =
         '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
-          '<div class="guide-bubble">Added “' + esc(g.createdTitle) + '” to <b>' + esc(g.createdSegment) + '</b>, ' + priorityWord(g.priority).toLowerCase() + ' priority' + (g.date ? ', ' + dueChip(g.date).text.toLowerCase() + (g.time ? ' at ' + timeLabel(g.time) : '') : '') + '. Anything else' + greetName() + '?' +
+          '<div class="guide-bubble">Added “' + esc(g.createdTitle) + '” to <b>' + esc(g.createdSegment) + '</b>, ' + priorityWord(g.priority).toLowerCase() + ' priority' + (g.date ? ', ' + dueChip(g.date).text.toLowerCase() + (g.time ? ' at ' + timeLabel(g.time) : '') : '') + (g.reminder && g.reminder.mode !== 'none' ? ', reminder ' + reminderLabel(g.reminder).toLowerCase() : '') + '. Anything else' + greetName() + '?' +
             (g.createdCalendarUrl ? '<br><a href="' + esc(g.createdCalendarUrl) + '" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;display:inline-block;margin-top:8px">Add to Google Calendar →</a>' : '') +
           '</div>' +
         '</div>';
@@ -1131,14 +1143,15 @@
             (pr.followUp ? '<div class="followup">' + esc(pr.followUp) +
               '<div class="opts"><button class="opt" data-act="proposal-confirm-date" data-i="' + i + '" data-v="near">Yes, that one</button>' +
               (pr.alt ? '<button class="opt" data-act="proposal-confirm-date" data-i="' + i + '" data-v="alt">The one after</button>' : '') + '</div></div>' : '') +
-            (pr.reminder && pr.reminder.needsConfirm ? '<div class="task-meta" style="margin-top:8px;color:var(--accent)">Reminder: ' + reminderLabel(pr.reminder) + ' — confirm this is right</div>' : '') +
+            '<button data-act="open-sheet" data-v="pick-proposal-reminder" data-sv="' + i + '" class="task-meta" style="margin-top:8px;color:var(--accent)">Reminder: ' + reminderLabel(pr.reminder) + (pr.reminder && pr.reminder.needsConfirm ? ' — confirm this is right' : '') + '</button>' +
           '</div>';
         }).join('') +
         (!list.length ? '<p class="empty-note">Nothing left to confirm.</p>' : '') +
       '</div>' +
       '<div class="foot">' +
         '<button class="btn btn-primary" data-act="accept-all-proposals"' + (!list.length || list.some(function (pr) { return !pr.followUp && !pr.segmentId; }) ? ' disabled' : '') + '>Save ' + count(list.length, 'task', 'tasks') + '</button>' +
-      '</div>';
+      '</div>' +
+      sheetOverlay() + toastHtml();
   }
 
   function answerScreen() {
@@ -1189,6 +1202,20 @@
   SHEETS['pick-reminder'] = function () {
     return '<div class="head" style="padding:16px 20px 0;border-bottom:none"><div class="label">REMINDER</div></div>' +
       '<div class="scroll pad-bottom" style="margin-top:6px">' + reminderOptionsHtml('set-draft-reminder', S.draft.reminder) + '</div>';
+  };
+  // Same reminder picker, reused for a quick-add proposal (before it's even
+  // saved) and an onboarding draft task — both index into their own list via
+  // S.sheetV instead of S.draft, so a reminder can be set right where the
+  // task is being created, not just after, in the full Edit Task screen.
+  SHEETS['pick-proposal-reminder'] = function () {
+    var pr = S.proposals[+S.sheetV];
+    return '<div class="head" style="padding:16px 20px 0;border-bottom:none"><div class="label">REMINDER</div></div>' +
+      '<div class="scroll pad-bottom" style="margin-top:6px">' + reminderOptionsHtml('set-proposal-reminder', pr && pr.reminder) + '</div>';
+  };
+  SHEETS['pick-draft-task-reminder'] = function () {
+    var t = (S.draftTasks || [])[+S.sheetV];
+    return '<div class="head" style="padding:16px 20px 0;border-bottom:none"><div class="label">REMINDER</div></div>' +
+      '<div class="scroll pad-bottom" style="margin-top:6px">' + reminderOptionsHtml('set-draft-task-reminder', t && t.reminder) + '</div>';
   };
   SHEETS['segment-menu'] = function () {
     var s = segmentById(S.sheetV);
@@ -1882,12 +1909,16 @@
     'start-capture': function () { S.captureFlow = 'listen'; S.draft = ''; render(); },
     'open-sheet': function (v, el) {
       if (v === 'pick-date') { S._exactDate = S.draft.due_at || ''; S._exactTime = S.draft.due_time || ''; }
-      if (v === 'pick-reminder' || v === 'global-reminder') {
-        var r = v === 'pick-reminder' ? S.draft.reminder : S.settings.reminderDefault;
+      var sv = el && el.getAttribute('data-sv');
+      if (v === 'pick-reminder' || v === 'global-reminder' || v === 'pick-proposal-reminder' || v === 'pick-draft-task-reminder') {
+        var r = v === 'pick-reminder' ? S.draft.reminder
+          : v === 'global-reminder' ? S.settings.reminderDefault
+          : v === 'pick-proposal-reminder' ? (S.proposals[+sv] || {}).reminder
+          : (S.draftTasks[+sv] || {}).reminder;
         var parts = (r && r.mode === 'custom' && r.at) ? r.at.split('T') : ['', ''];
         S._remindDate = parts[0]; S._remindTime = parts[1] || '';
       }
-      openSheet(v, el && el.getAttribute('data-sv'));
+      openSheet(v, sv);
     },
     'close-sheet': function () { closeSheet(); },
     'set-draft': function (v, el) { syncFields(); S.draft[el.getAttribute('data-k')] = v; render(); },
@@ -1933,6 +1964,22 @@
       closeSheet();
       saveLocal();
       if (API) call('PUT', '/api/settings/reminder', r);
+    },
+    // S.sheetV (the proposal/draft-task index) has to be read before
+    // closeSheet() clears it.
+    'set-proposal-reminder': function (v) {
+      var i = +S.sheetV;
+      var r = reminderFromToken(v);
+      if (!r) return;
+      if (S.proposals[i]) S.proposals[i].reminder = r;
+      closeSheet();
+    },
+    'set-draft-task-reminder': function (v) {
+      var i = +S.sheetV;
+      var r = reminderFromToken(v);
+      if (!r) return;
+      if (S.draftTasks && S.draftTasks[i]) S.draftTasks[i].reminder = r;
+      closeSheet();
     },
     'save-task': function () {
       syncFields();
@@ -2201,6 +2248,14 @@
     'guide-pick-priority': function (v) {
       var g = S.guide;
       g.priority = v;
+      g.step = 'confirm-reminder';
+      render();
+    },
+    'guide-pick-reminder': function (v) {
+      var g = S.guide;
+      var r = reminderFromToken(v);
+      if (!r) return;
+      g.reminder = r;
       if (g.followUp) { g.step = 'confirm-date'; render(); return; }
       createGuideTask();
     },
@@ -2218,7 +2273,7 @@
     onceSubmitting('create-guide-task', function () {
       var g = S.guide;
       var seg = segmentById(g.segmentId);
-      var payload = { segment_id: g.segmentId, title: g.title, due_at: g.date || null, due_time: g.date ? (g.time || null) : null, priority: g.priority || 'normal' };
+      var payload = { segment_id: g.segmentId, title: g.title, due_at: g.date || null, due_time: g.date ? (g.time || null) : null, priority: g.priority || 'normal', reminder: g.reminder };
       // A dated task gets its calendar link right in the confirmation
       // bubble below — no separate toggle or "connect a calendar" step —
       // so it's offered automatically the moment Mimi confirms the save.

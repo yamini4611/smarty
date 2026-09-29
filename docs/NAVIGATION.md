@@ -138,10 +138,15 @@ for the same tasks laid out by date instead of by state:
   calendar connection, and data controls (view your data as JSON, sign
   out, delete the account).
 
-A task's reminder (in the add/edit form, or as a default in Settings) is
-one of: no reminder, at the deadline, 15/30/60 minutes before, a day
-before at 9:00, a fully custom date and time, or a weekly repeat — the
-same picker in both places. A dated task is also offered to your calendar
+A task's reminder is customizable everywhere a task can be created, not
+just the full add/edit form or the default in Settings — the manual add
+form, onboarding's first-tasks list, a typed/spoken quick-add's "Confirm
+before saving" screen, and Mimi's own conversation each offer the same
+choices right where the task is being made: no reminder, at the deadline,
+15/30/60 minutes before, a day before at 9:00, a fully custom date and
+time, or a weekly repeat (Mimi's version skips the custom date/time
+sub-form, for a quick chat flow — set that from the task's own edit
+screen after). A dated task is also offered to your calendar
 automatically, right when it's created — from the manual add form, a
 typed/spoken quick-add, onboarding's first tasks, or Mimi — with a one-tap
 **Add to Calendar** action in that moment's own confirmation (a toast, or

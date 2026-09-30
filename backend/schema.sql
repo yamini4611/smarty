@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   life_stage TEXT,               -- JSON array of strings
   goals TEXT,                    -- JSON array of strings
   timezone TEXT NOT NULL DEFAULT 'Europe/London',
-  preferences TEXT NOT NULL DEFAULT '{"reminderDefault":{"mode":"before","offsetDays":1,"atHour":9},"voiceSpoken":false,"privateMode":false}',
+  preferences TEXT NOT NULL DEFAULT '{"reminderDefault":{"mode":"before","offsetDays":1,"atHour":9},"voiceSpoken":true,"privateMode":false}',
   created_at TEXT NOT NULL
 );
 

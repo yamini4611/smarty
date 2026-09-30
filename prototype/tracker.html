@@ -366,7 +366,7 @@
     chosenSegments: [],          // { name, color, icon, suggested }
     customSegment: '',
     user: { display_name: '', email: '' },
-    settings: { reminderDefault: { mode: 'before', offsetDays: 1, atHour: 9 }, voiceSpoken: false, privateMode: false },
+    settings: { reminderDefault: { mode: 'before', offsetDays: 1, atHour: 9 }, voiceSpoken: true, privateMode: false },
     notifPermission: false,
     integration: { status: 'disconnected' },
     segments: [],
@@ -963,7 +963,40 @@
   }
 
   function newGuide() {
-    return { step: 'listen', heard: '', title: '', segmentId: null, segmentGuess: null, priority: null, reminder: null, date: null, time: null, dateGuess: null, followUp: null, alt: null, createdTitle: '', createdSegment: '', createdCalendarUrl: null };
+    return { step: 'listen', heard: '', title: '', segmentId: null, segmentGuess: null, priority: null, reminder: null, adjusting: null, date: null, time: null, dateGuess: null, followUp: null, alt: null, createdTitle: '', createdSegment: '', createdCalendarUrl: null };
+  }
+  // The single combined "does this sound right?" line, once segment and date
+  // are both resolved — read aloud (guideSpokenText) and shown in the bubble
+  // (guideSummaryHtml) from the same set of facts, so the two never drift.
+  function guideSummaryText(g, seg) {
+    return 'Got it — ' + g.title + '. ' + seg.name + ', ' + priorityWord(g.priority).toLowerCase() + ' priority' +
+      (g.date ? ', ' + dueChip(g.date).text.toLowerCase() + (g.time ? ' at ' + timeLabel(g.time) : '') : ', no deadline') +
+      (g.reminder && g.reminder.mode !== 'none' ? ', reminder ' + reminderLabel(g.reminder).toLowerCase() : '') +
+      '. Sound right' + greetName() + '?';
+  }
+  function guideSummaryHtml(g, seg) {
+    return 'Got it — “' + esc(g.title) + '.” ' + dot(seg.color, 8) + ' <b>' + esc(seg.name) + '</b>, ' + priorityWord(g.priority).toLowerCase() + ' priority' +
+      (g.date ? ', ' + dueChip(g.date).text.toLowerCase() + (g.time ? ' at ' + timeLabel(g.time) : '') : ', no deadline') +
+      (g.reminder && g.reminder.mode !== 'none' ? ', reminder ' + reminderLabel(g.reminder).toLowerCase() : '') +
+      '. Sound right' + greetName() + '?';
+  }
+  // What Mimi should say out loud for whatever the 'confirm' step is about to
+  // show — mirrors that render branch exactly, so speech and the bubble text
+  // never disagree. Called once per actual state change (from the ACTs
+  // below), never from inside render itself, since render can re-run for
+  // reasons that have nothing to do with a new thing to say.
+  function guideSpokenText(g) {
+    var seg = g.segmentId ? segmentById(g.segmentId) : null;
+    var guess = g.segmentGuess ? segmentById(g.segmentGuess) : null;
+    if (!seg) {
+      return guess
+        ? 'Got it — ' + g.title + '. I think that’s ' + guess.name + ' — is that right' + greetName() + '?'
+        : 'Got it — ' + g.title + '. Which segment should that go under' + greetName() + '?';
+    }
+    if (g.followUp) return 'One more thing — ' + g.followUp;
+    if (g.adjusting === 'priority') return 'How important is this' + greetName() + ' — high, medium, or low?';
+    if (g.adjusting === 'reminder') return 'Want a reminder for this' + greetName() + '?';
+    return guideSummaryText(g, seg);
   }
 
   // ---------------------------------------------------------------- the voice guide
@@ -981,52 +1014,72 @@
         '</div>' +
         '<div class="label" style="margin-top:22px;color:' + micStatusColor() + '">' + micStatusLabel('TYPE OR TAP THE MIC') + '</div>' +
         '<textarea class="type-in" id="guide-in" rows="3" placeholder="e.g. finish the Amazon application today" style="margin-top:8px">' + esc(S.draft || '') + '</textarea>';
-    } else if (g.step === 'confirm-segment') {
+    } else if (g.step === 'confirm') {
+      var seg = g.segmentId ? segmentById(g.segmentId) : null;
       var guess = g.segmentGuess ? segmentById(g.segmentGuess) : null;
-      body =
-        '<div class="guide-you"><div class="guide-you-bubble">“' + esc(g.heard) + '”</div></div>' +
-        '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
-          '<div class="guide-bubble">' + (guess
-            ? 'Got it — “' + esc(g.title) + '.” I think that’s ' + dot(guess.color, 8) + ' <b>' + esc(guess.name) + '</b> — is that right' + greetName() + '?'
-            : 'Got it — “' + esc(g.title) + '.” Which segment should that go under' + greetName() + '?') + '</div>' +
-        '</div>' +
-        '<div class="pillrow" style="margin-top:14px;padding-left:44px">' +
-          (guess ? '<button class="opt" style="background:var(--accent);border-color:var(--accent);color:#fff" data-act="guide-pick-segment" data-v="' + guess.id + '">Yes, ' + esc(guess.name) + '</button>' : '') +
-          activeSegments().filter(function (s) { return !guess || s.id !== guess.id; }).map(function (s) {
-            return '<button class="opt" data-act="guide-pick-segment" data-v="' + s.id + '">' + esc(s.name) + '</button>';
-          }).join('') +
-        '</div>';
-    } else if (g.step === 'confirm-priority') {
-      var seg = segmentById(g.segmentId);
-      body =
-        '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
-          '<div class="guide-bubble">Filed under ' + dot(seg.color, 8) + ' <b>' + esc(seg.name) + '</b>. How important is this' + greetName() + ' — high, medium, or low?</div>' +
-        '</div>' +
-        '<div class="pillrow" style="margin-top:14px;padding-left:44px">' +
-          ['high', 'normal', 'low'].map(function (p) {
-            return '<button class="opt" style="border-color:' + priorityColor(p) + ';color:' + priorityColor(p) + '" data-act="guide-pick-priority" data-v="' + p + '">' + priorityWord(p) + '</button>';
-          }).join('') +
-        '</div>';
-    } else if (g.step === 'confirm-reminder') {
-      body =
-        '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
-          '<div class="guide-bubble">Want a reminder for this' + greetName() + '?</div>' +
-        '</div>' +
-        '<div class="pillrow" style="margin-top:14px;padding-left:44px">' +
-          [['none', 'No reminder'], ['at_deadline', 'At the deadline'], ['before15', '15 min before'], ['before30', '30 min before'], ['before60', '1 hour before'], ['before', '1 day before'], ['repeat', 'Weekly']].map(function (o) {
-            return '<button class="opt" data-act="guide-pick-reminder" data-v="' + o[0] + '">' + o[1] + '</button>';
-          }).join('') +
-        '</div>';
-    } else if (g.step === 'confirm-date') {
-      body =
-        '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
-          '<div class="guide-bubble">One more thing — ' + esc(g.followUp) + '</div>' +
-        '</div>' +
-        '<div class="pillrow" style="margin-top:14px;padding-left:44px">' +
-          '<button class="opt" data-act="guide-confirm-date" data-v="near">Yes, that one</button>' +
-          (g.alt ? '<button class="opt" data-act="guide-confirm-date" data-v="alt">The one after</button>' : '') +
-          '<button class="opt" data-act="guide-confirm-date" data-v="none">Never mind, no deadline</button>' +
-        '</div>';
+      if (!seg) {
+        // Segment is the one thing that can't be guessed further — ask,
+        // nothing else shown yet. Picking one re-renders straight into
+        // whichever of the branches below now applies.
+        body =
+          '<div class="guide-you"><div class="guide-you-bubble">“' + esc(g.heard) + '”</div></div>' +
+          '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
+            '<div class="guide-bubble">' + (guess
+              ? 'Got it — “' + esc(g.title) + '.” I think that’s ' + dot(guess.color, 8) + ' <b>' + esc(guess.name) + '</b> — is that right' + greetName() + '?'
+              : 'Got it — “' + esc(g.title) + '.” Which segment should that go under' + greetName() + '?') + '</div>' +
+          '</div>' +
+          '<div class="pillrow" style="margin-top:14px;padding-left:44px">' +
+            (guess ? '<button class="opt" style="background:var(--accent);border-color:var(--accent);color:#fff" data-act="guide-pick-segment" data-v="' + guess.id + '">Yes, ' + esc(guess.name) + '</button>' : '') +
+            activeSegments().filter(function (s) { return !guess || s.id !== guess.id; }).map(function (s) {
+              return '<button class="opt" data-act="guide-pick-segment" data-v="' + s.id + '">' + esc(s.name) + '</button>';
+            }).join('') +
+          '</div>';
+      } else if (g.followUp) {
+        // A genuinely ambiguous date ("next week") is the other thing that
+        // can't be guessed — same deal, resolving it falls through to the
+        // combined confirmation below.
+        body =
+          '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
+            '<div class="guide-bubble">One more thing — ' + esc(g.followUp) + '</div>' +
+          '</div>' +
+          '<div class="pillrow" style="margin-top:14px;padding-left:44px">' +
+            '<button class="opt" data-act="guide-confirm-date" data-v="near">Yes, that one</button>' +
+            (g.alt ? '<button class="opt" data-act="guide-confirm-date" data-v="alt">The one after</button>' : '') +
+            '<button class="opt" data-act="guide-confirm-date" data-v="none">Never mind, no deadline</button>' +
+          '</div>';
+      } else if (g.adjusting === 'priority') {
+        body =
+          '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
+            '<div class="guide-bubble">How important is this' + greetName() + ' — high, medium, or low?</div>' +
+          '</div>' +
+          '<div class="pillrow" style="margin-top:14px;padding-left:44px">' +
+            ['high', 'normal', 'low'].map(function (p) {
+              return '<button class="opt" style="border-color:' + priorityColor(p) + ';color:' + priorityColor(p) + '" data-act="guide-pick-priority" data-v="' + p + '">' + priorityWord(p) + '</button>';
+            }).join('') +
+          '</div>';
+      } else if (g.adjusting === 'reminder') {
+        body =
+          '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
+            '<div class="guide-bubble">Want a reminder for this' + greetName() + '?</div>' +
+          '</div>' +
+          '<div class="pillrow" style="margin-top:14px;padding-left:44px">' +
+            [['none', 'No reminder'], ['at_deadline', 'At the deadline'], ['before15', '15 min before'], ['before30', '30 min before'], ['before60', '1 hour before'], ['before', '1 day before'], ['repeat', 'Weekly']].map(function (o) {
+              return '<button class="opt" data-act="guide-pick-reminder" data-v="' + o[0] + '">' + o[1] + '</button>';
+            }).join('') +
+          '</div>';
+      } else {
+        // Everything's resolved (guessed, defaulted, or already adjusted) —
+        // one combined check instead of three separate ones.
+        body =
+          '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
+            '<div class="guide-bubble">' + guideSummaryHtml(g, seg) + '</div>' +
+          '</div>' +
+          '<div class="pillrow" style="margin-top:14px;padding-left:44px">' +
+            '<button class="opt" style="background:var(--accent);border-color:var(--accent);color:#fff" data-act="guide-confirm-yes">Yes, add it</button>' +
+            '<button class="opt" data-act="guide-adjust" data-v="priority">Priority</button>' +
+            '<button class="opt" data-act="guide-adjust" data-v="reminder">Reminder</button>' +
+          '</div>';
+      }
     } else if (g.step === 'done') {
       body =
         '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
@@ -1527,7 +1580,7 @@
 
         sectionHead('VOICE') +
         '<div class="check-row">' +
-          '<div style="flex:1"><div class="task-title">Read answers aloud</div><div class="task-meta" style="margin-top:2px">Speak retrieval answers, not just show them</div></div>' +
+          '<div style="flex:1"><div class="task-title">Read answers aloud</div><div class="task-meta" style="margin-top:2px">Speak Mimi’s side of the conversation and retrieval answers, not just show them</div></div>' +
           '<button class="toggle" aria-checked="' + S.settings.voiceSpoken + '" data-act="toggle-voice-spoken"><i></i></button>' +
         '</div>' +
         '<div class="check-row">' +
@@ -1777,7 +1830,10 @@
         S.captureFlow = null;
         S.tabBefore = S.openSegmentId ? 'segment-detail' : S.screen;
       }
-      if (v === 'voice-guide') { S.guide = newGuide(); S.draft = ''; }
+      if (v === 'voice-guide') {
+        S.guide = newGuide(); S.draft = '';
+        if (S.settings.voiceSpoken) speak('Hi' + greetName() + ', I’m Mimi. Tell me what you need to add — I’ll figure out where it goes and check with you before saving anything.');
+      }
       if (v === 'dashboard') S.openSegmentId = null;
       if (v === 'suggested-segments' && S.screen === 'about-you') {
         S.user.display_name = (S.user.display_name || '').trim();
@@ -2225,15 +2281,24 @@
       if (!text) return;
       var g = S.guide;
       g.heard = text;
+      // A confident segment guess and an unambiguous date mean nothing left
+      // to ask — priority/reminder are pre-filled (from the phrase, or the
+      // account default) rather than asked, so the very next thing shown is
+      // the single combined "sound right?" check, not a chain of questions.
       var afterParse = function (p) {
         g.title = p.title;
         g.segmentGuess = p.segmentId || null;
+        g.segmentId = p.segmentId || null;
         g.date = p.date || null;
         g.time = p.date ? (p.time || null) : null;
         g.followUp = p.followUp || null;
         g.alt = p.alt || null;
-        g.step = 'confirm-segment';
+        g.priority = p.priority || 'normal';
+        g.reminder = p.reminder || effectiveReminder(null);
+        g.adjusting = null;
+        g.step = 'confirm';
         S.draft = '';
+        if (S.settings.voiceSpoken) speak(guideSpokenText(g));
         render();
       };
       if (API) {
@@ -2244,11 +2309,31 @@
         afterParse(localParseClause(text, 0));
       }
     },
-    'guide-pick-segment': function (v) { S.guide.segmentId = v; S.guide.step = 'confirm-priority'; render(); },
+    'guide-pick-segment': function (v) {
+      var g = S.guide;
+      g.segmentId = v;
+      if (S.settings.voiceSpoken) speak(guideSpokenText(g));
+      render();
+    },
+    'guide-confirm-date': function (v) {
+      var g = S.guide;
+      if (v === 'alt' && g.alt) g.date = g.alt;
+      if (v === 'none') g.date = null;
+      g.followUp = null;
+      if (S.settings.voiceSpoken) speak(guideSpokenText(g));
+      render();
+    },
+    'guide-adjust': function (v) {
+      var g = S.guide;
+      g.adjusting = v;
+      if (S.settings.voiceSpoken) speak(guideSpokenText(g));
+      render();
+    },
     'guide-pick-priority': function (v) {
       var g = S.guide;
       g.priority = v;
-      g.step = 'confirm-reminder';
+      g.adjusting = null;
+      if (S.settings.voiceSpoken) speak(guideSpokenText(g));
       render();
     },
     'guide-pick-reminder': function (v) {
@@ -2256,16 +2341,11 @@
       var r = reminderFromToken(v);
       if (!r) return;
       g.reminder = r;
-      if (g.followUp) { g.step = 'confirm-date'; render(); return; }
-      createGuideTask();
+      g.adjusting = null;
+      if (S.settings.voiceSpoken) speak(guideSpokenText(g));
+      render();
     },
-    'guide-confirm-date': function (v) {
-      var g = S.guide;
-      if (v === 'alt' && g.alt) g.date = g.alt;
-      if (v === 'none') g.date = null;
-      g.followUp = null;
-      createGuideTask();
-    },
+    'guide-confirm-yes': function () { createGuideTask(); },
     'guide-again': function () { S.guide = newGuide(); S.draft = ''; render(); }
   };
 
@@ -2283,6 +2363,12 @@
         g.createdCalendarUrl = t.due_at ? taskCalendarUrl(t, seg) : null;
         g.step = 'done';
         saveLocal();
+        if (S.settings.voiceSpoken) {
+          speak('Added ' + g.createdTitle + ' to ' + g.createdSegment + ', ' + priorityWord(g.priority).toLowerCase() + ' priority' +
+            (g.date ? ', ' + dueChip(g.date).text.toLowerCase() + (g.time ? ' at ' + timeLabel(g.time) : '') : '') +
+            (g.reminder && g.reminder.mode !== 'none' ? ', reminder ' + reminderLabel(g.reminder).toLowerCase() : '') +
+            '. Anything else' + greetName() + '?');
+        }
         render();
       };
       if (API) return call('POST', '/api/tasks', payload).then(function (t) { S.tasks.push(t); return after(t); });

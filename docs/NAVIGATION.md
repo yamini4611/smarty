@@ -93,15 +93,20 @@ always "Add segment."
 > opens quick add — the same manual form as before, from here or from
 > Upcoming, by typing or speaking, exactly as the doc's "global quick-add...
 > from any dashboard state" asks for — and, beside it, a second button for
-> **Mimi**, the voice guide (a mic icon on its own tinted circle), that
-> opens a different, conversational flow: it takes what you say or type in
-> one shot ("add finish amazon application today"), proposes which segment
-> it thinks that belongs under, and waits for you to confirm or pick a
-> different one — addressing you by the name given in onboarding (§3) if
-> one was given; then it asks for a priority level; then, only if the
-> phrasing was genuinely date-ambiguous, confirms which date you meant —
-> and only after all of that does it actually create the task. Nothing is
-> saved until every step is confirmed.
+> **Mimi** (her own turtle avatar, matching the app's logo, on a light
+> circle — not a generic mic icon), that opens a different, conversational
+> flow: it takes what you say or type in one shot ("add finish amazon
+> application today"), and only asks about whatever it genuinely can't
+> resolve on its own — which segment, if nothing matched by name, or which
+> date, if the phrasing was truly ambiguous — addressing you by the name
+> given in onboarding (§3) if one was given. Everything else (priority,
+> reminder) is filled in from the phrase itself or your defaults without
+> asking, and the whole thing lands on one combined "Got it — sound right?"
+> check with a **Priority** and **Reminder** quick-adjust if either needs a
+> tweak, rather than a chain of separate questions. Nothing is saved until
+> that check is confirmed. When "Read answers aloud" is on in Settings
+> (on by default), Mimi speaks her own side of this conversation as well
+> as showing it, using the browser's own text-to-speech.
 
 **8 · Segment detail** — tap any segment card to land here: the same card,
 larger, with its full description, kind badge, and (for a project) the same

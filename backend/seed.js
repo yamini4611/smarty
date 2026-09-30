@@ -11,7 +11,7 @@ function seed(today) {
     age_range: '25 to 34', life_stage: JSON.stringify(['Working', 'Homeowner or renter']),
     goals: JSON.stringify(['Reduce stress', 'Organize multiple responsibilities']),
     timezone: 'Europe/London',
-    preferences: JSON.stringify({ reminderDefault: { mode: 'before', offsetDays: 1, atHour: 9 }, voiceSpoken: false, privateMode: false }),
+    preferences: JSON.stringify({ reminderDefault: { mode: 'before', offsetDays: 1, atHour: 9 }, voiceSpoken: true, privateMode: false }),
     created_at: iso(-40)
   };
 

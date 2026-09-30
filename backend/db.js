@@ -48,7 +48,7 @@ function wipe(db) {
 // demo automatically; see open() above.
 function createBlankUser(db, userId, today) {
   db.prepare('INSERT INTO users (id,email,display_name,age_range,life_stage,goals,timezone,preferences,created_at) VALUES (?,?,?,?,?,?,?,?,?)')
-    .run(userId, 'you@example.com', '', null, '[]', '[]', 'Europe/London', '{"reminderDefault":{"mode":"before","offsetDays":1,"atHour":9},"voiceSpoken":false,"privateMode":false}', today.toISOString());
+    .run(userId, 'you@example.com', '', null, '[]', '[]', 'Europe/London', '{"reminderDefault":{"mode":"before","offsetDays":1,"atHour":9},"voiceSpoken":true,"privateMode":false}', today.toISOString());
   db.prepare('INSERT INTO integrations (id,user_id,provider,permission_scope,token_reference,status) VALUES (?,?,?,?,?,?)')
     .run(newId('ig'), userId, 'google_calendar', 'calendar.events.write', 'mock-token', 'disconnected');
 }

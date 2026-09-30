@@ -2424,11 +2424,14 @@
     if (!window.isSecureContext) { toast('Voice needs a secure connection (https) — type instead.'); return; }
     rec = new Rec();
     rec.continuous = true; rec.interimResults = true; rec.lang = 'en-GB';
-    var base = S.draft || '';
+    // Each tap of the mic is a fresh take, not a continuation — replacing
+    // the draft (rather than appending to whatever was there, including a
+    // previous bad transcript) is what makes "record again" actually mean
+    // "redo it," not "pile the new attempt on top of the wrong one."
     rec.onresult = function (e) {
       var t = '';
       for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
-      S.draft = (base ? base + ' ' : '') + t;
+      S.draft = t;
       render();
     };
     // A silent onerror just left the mic looking broken with no explanation —
@@ -2482,14 +2485,16 @@
     S.listening = false;
     if (!blob.size) { render(); return; }
     S.transcribing = true; render();
-    var base = S.draft || '';
+    // Same as the live-recognition path: replace, don't append, so a
+    // second recording is a clean redo instead of stacking a new
+    // transcript onto whatever the last attempt got wrong.
     var reader = new FileReader();
     reader.onloadend = function () {
       var base64 = String(reader.result || '').split(',')[1] || '';
       call('POST', '/api/assistant/transcribe', { audio: base64, mimeType: mimeType || 'audio/webm' })
         .then(function (r) {
           S.transcribing = false;
-          if (r && r.text) S.draft = (base ? base + ' ' : '') + r.text;
+          if (r && r.text) S.draft = r.text;
           else toast('Didn’t catch that — try again, or type instead.');
           render();
         })

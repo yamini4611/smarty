@@ -175,7 +175,7 @@ The server-side transcription call supports two providers, picked by
 whichever environment variable is set:
 
 1. **`GEMINI_API_KEY`** (checked first if both are set) — calls Google's
-   `gemini-2.0-flash` `generateContent` endpoint with the recorded audio as
+   `gemini-3.8-flash` `generateContent` endpoint with the recorded audio as
    inline base64 data and a "transcribe this exactly" prompt. This is a
    general multimodal model doing transcription via a prompt, not a
    purpose-built speech model, and Google's documented supported audio

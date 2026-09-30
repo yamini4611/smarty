@@ -565,6 +565,23 @@
     var sorted = segs.slice().sort(function (a, b) { return (b.overdue > 0) - (a.overdue > 0) || (b.approaching > 0) - (a.approaching > 0); });
     return { summary: { overdue: overdue, approaching: approaching, pending: pending, completedThisWeek: completedThisWeek }, segments: sorted };
   }
+  // What Mimi opens with — a real read of what's overdue or due today, not a
+  // generic hello, so opening her is worth doing even when you have nothing
+  // to add. Caps the named tasks at 3 so it doesn't turn into a wall of text
+  // (or a very long thing to have read aloud).
+  function mimiDailyBrief() {
+    var open = S.tasks.filter(function (t) { return t.status === 'open'; });
+    var overdue = open.filter(function (t) { return taskState(t) === 'overdue'; });
+    var dueToday = open.filter(function (t) { return t.due_at && daysFrom(t.due_at) === 0; });
+    var urgent = overdue.concat(dueToday);
+    if (!urgent.length) return 'You’re all caught up' + greetName() + ' — nothing overdue or due today.';
+    var parts = [];
+    if (overdue.length) parts.push(count(overdue.length, 'task', 'tasks') + ' overdue');
+    if (dueToday.length) parts.push(count(dueToday.length, 'task', 'tasks') + ' due today');
+    var named = urgent.slice(0, 3).map(function (t) { return t.title; });
+    var rest = urgent.length - named.length;
+    return 'You have ' + parts.join(' and ') + greetName() + ' — ' + named.join(', ') + (rest > 0 ? ', and ' + count(rest, 'more', 'more') : '') + '.';
+  }
   function allOpenSorted() {
     return S.tasks.filter(function (t) { return t.status === 'open'; }).slice().sort(function (a, b) {
       var sa = taskState(a), sb = taskState(b);
@@ -1010,7 +1027,10 @@
     if (g.step === 'listen') {
       body =
         '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
-          '<div class="guide-bubble">Hi' + greetName() + ', I’m Mimi. Tell me what you need to add — I’ll figure out where it goes and check with you before saving anything.</div>' +
+          '<div class="guide-bubble">' + esc(mimiDailyBrief()) + '</div>' +
+        '</div>' +
+        '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
+          '<div class="guide-bubble">Tell me what you need to add — I’ll figure out where it goes and check with you before saving anything.</div>' +
         '</div>' +
         '<div class="label" style="margin-top:22px;color:' + micStatusColor() + '">' + micStatusLabel('TYPE OR TAP THE MIC') + '</div>' +
         '<textarea class="type-in" id="guide-in" rows="3" placeholder="e.g. finish the Amazon application today" style="margin-top:8px">' + esc(S.draft || '') + '</textarea>';
@@ -1832,7 +1852,7 @@
       }
       if (v === 'voice-guide') {
         S.guide = newGuide(); S.draft = '';
-        if (S.settings.voiceSpoken) speak('Hi' + greetName() + ', I’m Mimi. Tell me what you need to add — I’ll figure out where it goes and check with you before saving anything.');
+        if (S.settings.voiceSpoken) speak(mimiDailyBrief() + ' Tell me what you need to add — I’ll figure out where it goes and check with you before saving anything.');
       }
       if (v === 'dashboard') S.openSegmentId = null;
       if (v === 'suggested-segments' && S.screen === 'about-you') {

@@ -94,7 +94,11 @@ always "Add segment."
 > Upcoming, by typing or speaking, exactly as the doc's "global quick-add...
 > from any dashboard state" asks for — and, beside it, a second button for
 > **Mimi** (her own turtle avatar, matching the app's logo, on a light
-> circle — not a generic mic icon), that opens a different, conversational
+> circle — not a generic mic icon), that opens with a real daily brief —
+> "You have two tasks overdue — Send the quarterly report, Submit expense
+> report" (or "You're all caught up" when there's nothing overdue or due
+> today) — before anything else, so opening her is worth doing even when
+> you have nothing new to add. Then it's a different, conversational
 > flow: it takes what you say or type in one shot ("add finish amazon
 > application today"), and only asks about whatever it genuinely can't
 > resolve on its own — which segment, if nothing matched by name, or which

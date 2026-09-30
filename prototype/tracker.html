@@ -2520,16 +2520,42 @@
   // Text-to-speech for the "visual plus spoken response" voice preference —
   // §6.4 says never read sensitive task details in private mode, only the
   // summary line, which is all this ever passes in.
+  //
+  // Prefers a real, human-sounding voice (Google Cloud TTS, via the
+  // backend) over the browser's own built-in speechSynthesis, which is
+  // instant but sounds robotic. Falls back to the browser voice automatically
+  // — no backend, no GOOGLE_TTS_API_KEY configured, or the network call
+  // itself fails — so speech never just goes silent because the nicer
+  // voice isn't set up.
+  var currentAudio = null;
   function speak(text) {
-    if (!text || !window.speechSynthesis) return;
+    if (!text) return;
+    if (currentAudio) { try { currentAudio.pause(); } catch (e) {} currentAudio = null; }
+    if (window.speechSynthesis) { try { window.speechSynthesis.cancel(); } catch (e) {} }
+    S.speaking = true; render();
+    var done = function () { S.speaking = false; render(); };
+    if (API) {
+      call('POST', '/api/assistant/speak', { text: text }).then(function (r) {
+        if (!r || !r.audio) return speakBrowser(text, done);
+        try {
+          var audio = new Audio('data:audio/mp3;base64,' + r.audio);
+          currentAudio = audio;
+          audio.onended = done; audio.onerror = function () { speakBrowser(text, done); };
+          audio.play().catch(function () { speakBrowser(text, done); });
+        } catch (e) { speakBrowser(text, done); }
+      }).catch(function () { speakBrowser(text, done); });
+    } else {
+      speakBrowser(text, done);
+    }
+  }
+  function speakBrowser(text, done) {
+    if (!window.speechSynthesis) { done(); return; }
     try {
-      window.speechSynthesis.cancel();
       var u = new SpeechSynthesisUtterance(text);
       u.rate = 1; u.pitch = 1;
-      u.onstart = function () { S.speaking = true; render(); };
-      u.onend = function () { S.speaking = false; render(); };
+      u.onend = done; u.onerror = done;
       window.speechSynthesis.speak(u);
-    } catch (e) {}
+    } catch (e) { done(); }
   }
 
   // ---------------------------------------------------------------- render

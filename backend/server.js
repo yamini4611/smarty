@@ -137,6 +137,32 @@ async function transcribeWithGemini(buf, mime, key, attempt) {
   return text.trim();
 }
 
+// ---------------------------------------------------------------- text to speech
+
+// Mimi's real voice — Google Cloud Text-to-Speech, a Neural2 voice rather
+// than the browser's own (robotic) built-in speechSynthesis. Separate
+// service from the Gemini API used for transcription above: it needs its
+// own key, from a project with the "Cloud Text-to-Speech API" enabled
+// (an AI-Studio-issued Gemini key is usually restricted to the
+// Generative Language API and won't work here without that).
+async function synthesizeSpeech(text, key) {
+  const url = 'https://texttospeech.googleapis.com/v1/text:synthesize?key=' + key;
+  const reqBody = {
+    input: { text: String(text).slice(0, 4900) },
+    voice: { languageCode: 'en-US', name: 'en-US-Neural2-F' },
+    audioConfig: { audioEncoding: 'MP3' }
+  };
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(reqBody)
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((data.error && data.error.message) || 'Speech synthesis failed.');
+  if (!data.audioContent) throw new Error('No audio returned.');
+  return data.audioContent; // base64 MP3
+}
+
 // ---------------------------------------------------------------- page
 
 function servePage(res) {
@@ -443,6 +469,22 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { text });
       } catch (e) {
         return json(res, 502, { error: e.message || 'Transcription failed.' });
+      }
+    }
+
+    // Mimi's spoken responses — Google Cloud TTS when GOOGLE_TTS_API_KEY is
+    // set; without one, the client falls back to the browser's own
+    // speechSynthesis on its own, so this 501 is expected and harmless in
+    // that case rather than something to fix.
+    if (p === '/api/assistant/speak' && m === 'POST') {
+      const ttsKey = process.env.GOOGLE_TTS_API_KEY;
+      if (!ttsKey) return json(res, 501, { error: 'Realistic voice isn’t set up on this server yet (set GOOGLE_TTS_API_KEY).' });
+      if (!inBody.text) return json(res, 400, { error: 'No text to speak.' });
+      try {
+        const audio = await synthesizeSpeech(inBody.text, ttsKey);
+        return json(res, 200, { audio });
+      } catch (e) {
+        return json(res, 502, { error: e.message || 'Speech synthesis failed.' });
       }
     }
 

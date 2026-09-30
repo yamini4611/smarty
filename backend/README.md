@@ -160,7 +160,9 @@ calendar" wording already in Settings. Times are floating (no timezone
 conversion), same as every other date/time in this app; the Google link
 adds `ctz=<user.timezone>` so Google renders it in the right zone anyway.
 
-## Real voice on iPhone
+## Real voice, in both directions
+
+### Hearing you (speech to text)
 
 The mic button tries the browser's built-in `SpeechRecognition` API first —
 instant, on-device, no network call. That API has never shipped on iOS
@@ -211,6 +213,29 @@ behind it, so this needs `node backend/server.js` running somewhere
 public, not just on `localhost`. A free host that runs a plain Node
 `http` server with zero config (Render, Railway, Fly.io all work) is
 enough — there's nothing here that needs a framework or a build step.
+
+### Talking to you (text to speech)
+
+Mimi's spoken responses ("Read answers aloud" in Settings, on by default)
+use **`POST /api/assistant/speak`**, which calls Google Cloud
+Text-to-Speech (a Neural2 voice) when **`GOOGLE_TTS_API_KEY`** is set —
+a real, human-sounding voice instead of the browser's own built-in
+`speechSynthesis`, which is instant but sounds robotic.
+
+This is a **separate Google service from Gemini**, despite both being
+Google APIs: a Gemini key issued by Google AI Studio is normally
+restricted to the Generative Language API and won't work here. To get a
+working key: in the same Google Cloud project as your Gemini key (or a
+new one), enable the **"Cloud Text-to-Speech API"** under APIs &
+Services, then create an API key under Credentials (or reuse an existing
+one, provided it isn't restricted to a different API). Billing needs to
+be enabled on that project, though the free tier (about 1 million
+characters/month for Neural2 voices) covers ordinary testing.
+
+Without `GOOGLE_TTS_API_KEY` set, `/api/assistant/speak` returns a plain
+"not set up yet" error — the client treats this exactly like a network
+failure and falls back to the browser's own `speechSynthesis`
+automatically, so speech never just goes silent for lack of this key.
 
 ## Without the server
 

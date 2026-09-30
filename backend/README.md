@@ -1,4 +1,4 @@
-# Smart Life Tracker backend
+# Smarty backend
 
 The real backend behind `prototype/tracker.html` — Node's standard library
 plus the built-in `node:sqlite` module only. No `npm install`, no external
@@ -12,6 +12,11 @@ node backend/server.js 5000     # or pick a port
 It prints a `localhost` address and a LAN address, so you can open it on a
 phone on the same wifi — the app is designed at 390px and is worth looking
 at on an actual screen that size.
+
+The server also serves the app's icon and PWA manifest: `/favicon.ico`,
+`/icons/*` (192/512px and an Apple touch icon, generated from the Smarty
+turtle-and-calendar logo), and `/manifest.json`, so "Add to Home Screen" on
+an iPhone gets a real icon instead of a generic globe.
 
 State lives in `backend/data.sqlite`, a real SQLite database (Node prints one
 `ExperimentalWarning` about `node:sqlite` on startup — harmless). Delete the
@@ -131,9 +136,14 @@ curl -X POST localhost:4000/api/assistant/query \
 
 ## Real calendar export
 
-"Add to calendar" on a dated task no longer creates a fake `mock_...` id —
-it produces a real event two ways, neither needing Google/Apple OAuth
-credentials (none exist in this environment):
+Every task-creation path (the manual add form, a typed/spoken quick-add,
+onboarding's first tasks, and Mimi) offers a dated task to your calendar
+automatically the moment it's saved — a one-tap "Add to Calendar" link
+right in that flow's own confirmation (a toast, or inline in Mimi's own
+reply), not a separate toggle or setting to turn on first. The same export
+also stays available afterward from the task's own edit screen. It's a real
+event, two ways, neither needing Google/Apple OAuth credentials (none exist
+in this environment):
 
 - **Add to Google Calendar →** opens Google's own "quick add" URL,
   pre-filled with the task's title, date/time, segment, and notes. No
@@ -157,23 +167,39 @@ instant, on-device, no network call. That API has never shipped on iOS
 (every browser there runs WebKit, which doesn't implement the recognition
 half of the spec), so on an iPhone the app falls back to recording audio
 with `MediaRecorder` (which iOS Safari does support) and posting it to
-`POST /api/assistant/transcribe`, which forwards it to OpenAI's Whisper
-API and returns the text. Whichever path ran, the transcript lands in the
-same text field a typed capture would — everything downstream (date/time
-parsing, segment matching) is identical either way.
+`POST /api/assistant/transcribe`. Whichever path ran, the transcript lands
+in the same text field a typed capture would — everything downstream
+(date/time parsing, segment matching) is identical either way.
 
-This only works with:
+The server-side transcription call supports two providers, picked by
+whichever environment variable is set:
 
-1. **`OPENAI_API_KEY` set in the environment.** Without it, `/api/assistant/transcribe`
-   returns a plain "not set up yet" error instead of pretending to work —
-   set it as an environment variable wherever the server actually runs;
-   never commit it to the repo.
-2. **A live backend your phone can actually reach over HTTPS** — the
-   published prototype link is a static page with no server behind it, so
-   this needs `node backend/server.js` running somewhere public, not just
-   on `localhost`. A free host that runs a plain Node `http` server with
-   zero config (Render, Railway, Fly.io all work) is enough — there's
-   nothing here that needs a framework or a build step.
+1. **`GEMINI_API_KEY`** (checked first if both are set) — calls Google's
+   `gemini-2.0-flash` `generateContent` endpoint with the recorded audio as
+   inline base64 data and a "transcribe this exactly" prompt. This is a
+   general multimodal model doing transcription via a prompt, not a
+   purpose-built speech model, and Google's documented supported audio
+   inputs for this endpoint are WAV/MP3/AIFF/AAC/OGG Vorbis/FLAC — not the
+   `audio/webm;codecs=opus` or `audio/mp4` that browsers actually record.
+   It may still accept those container formats fine, but that's unverified
+   against a live key; if Gemini rejects the format, the error it returns
+   is passed straight back to the client.
+2. **`OPENAI_API_KEY`** — calls OpenAI's Whisper API (`whisper-1`), a
+   model purpose-built for speech-to-text that's already been confirmed
+   end-to-end (short of the account's own billing) with real
+   browser-recorded audio.
+
+Without either set, `/api/assistant/transcribe` returns a plain "not set
+up yet" error instead of pretending to work. Set whichever key as an
+environment variable wherever the server actually runs; never commit one
+to the repo.
+
+This also needs **a live backend your phone can actually reach over
+HTTPS** — the published prototype link is a static page with no server
+behind it, so this needs `node backend/server.js` running somewhere
+public, not just on `localhost`. A free host that runs a plain Node
+`http` server with zero config (Render, Railway, Fly.io all work) is
+enough — there's nothing here that needs a framework or a build step.
 
 ## Without the server
 

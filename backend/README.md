@@ -183,11 +183,22 @@ whichever environment variable is set:
    `audio/webm;codecs=opus` or `audio/mp4` that browsers actually record.
    It may still accept those container formats fine, but that's unverified
    against a live key; if Gemini rejects the format, the error it returns
-   is passed straight back to the client.
+   is passed straight back to the client. Gemini's free tier also returns
+   a plain 503 "model is overloaded" during shared-capacity spikes — this
+   is retried automatically up to twice with backoff before it's treated
+   as a real failure.
 2. **`OPENAI_API_KEY`** — calls OpenAI's Whisper API (`whisper-1`), a
    model purpose-built for speech-to-text that's already been confirmed
    end-to-end (short of the account's own billing) with real
    browser-recorded audio.
+
+If both keys are set and Gemini still fails after its retries (a genuine
+outage, a bad key, an unsupported format — not just a momentary overload),
+the request falls back to Whisper automatically rather than surfacing an
+error, since two independent providers failing on the same request at the
+same time is far less likely than either one alone having a bad moment.
+Setting both is the most reliable configuration for real users, since
+either provider's outage is covered by the other.
 
 Without either set, `/api/assistant/transcribe` returns a plain "not set
 up yet" error instead of pretending to work. Set whichever key as an

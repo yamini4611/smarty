@@ -96,7 +96,16 @@ async function transcribeWithOpenAI(buf, mime, key) {
   return (data.text || '').trim();
 }
 
-async function transcribeWithGemini(buf, mime, key) {
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Gemini's free tier shares capacity across everyone on it and returns a
+// plain 503 "the model is overloaded" when that capacity is momentarily
+// exhausted — not an error in this app, and usually gone within seconds.
+// Retried a couple of times with backoff before giving up, so a transient
+// spike doesn't surface as a failure the person has to notice and retry
+// themselves.
+async function transcribeWithGemini(buf, mime, key, attempt) {
+  attempt = attempt || 1;
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=' + key;
   const reqBody = {
     contents: [{
@@ -112,7 +121,15 @@ async function transcribeWithGemini(buf, mime, key) {
     body: JSON.stringify(reqBody)
   });
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error((data.error && data.error.message) || 'Transcription failed.');
+  if (!r.ok) {
+    const msg = (data.error && data.error.message) || '';
+    const overloaded = r.status === 503 || /overloaded|high demand|unavailable/i.test(msg);
+    if (overloaded && attempt < 3) {
+      await sleep(attempt * 1200);
+      return transcribeWithGemini(buf, mime, key, attempt + 1);
+    }
+    throw new Error(msg || 'Transcription failed.');
+  }
   const text = data.candidates && data.candidates[0] && data.candidates[0].content &&
     data.candidates[0].content.parts && data.candidates[0].content.parts[0] &&
     data.candidates[0].content.parts[0].text;
@@ -409,7 +426,20 @@ const server = http.createServer(async (req, res) => {
         // model, and its documented audio inputs are WAV/MP3/AAC/OGG/FLAC,
         // not the webm/mp4 a browser's MediaRecorder actually produces; if
         // it rejects the format, that error comes back to the client as-is.
-        const text = geminiKey ? await transcribeWithGemini(buf, mime, geminiKey) : await transcribeWithOpenAI(buf, mime, openaiKey);
+        // If Gemini still fails after its own retries (real outage, not
+        // just a momentary overload) and a Whisper key also exists, fall
+        // back to it silently instead of surfacing an error to the person —
+        // two independent providers failing at once is far less likely
+        // than either one alone having a bad moment.
+        if (geminiKey) {
+          try {
+            const text = await transcribeWithGemini(buf, mime, geminiKey);
+            return json(res, 200, { text });
+          } catch (e) {
+            if (!openaiKey) throw e;
+          }
+        }
+        const text = await transcribeWithOpenAI(buf, mime, openaiKey);
         return json(res, 200, { text });
       } catch (e) {
         return json(res, 502, { error: e.message || 'Transcription failed.' });

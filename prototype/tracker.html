@@ -1024,7 +1024,6 @@
   SCREENS['voice-guide'] = function () {
     var g = S.guide || (S.guide = newGuide());
     var body = '';
-    var askingDate = false;
 
     if (g.step === 'listen') {
       body =
@@ -1074,7 +1073,6 @@
         // defaulting to "no deadline" the way a missing priority or
         // reminder can; quick picks cover the common cases, but you can
         // also just say or type a day ("next Friday at 3pm").
-        askingDate = true;
         body =
           '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
             '<div class="guide-bubble">When should “' + esc(g.title) + '” be done by' + greetName() + '? Say a day and time, or tell me there’s no deadline.</div>' +
@@ -1083,8 +1081,7 @@
             '<button class="opt" data-act="guide-quick-date" data-v="today">Today</button>' +
             '<button class="opt" data-act="guide-quick-date" data-v="tomorrow">Tomorrow</button>' +
             '<button class="opt" data-act="guide-quick-date" data-v="none">No deadline</button>' +
-          '</div>' +
-          '<textarea class="type-in" id="guide-in" rows="2" placeholder="e.g. next Friday at 3pm" style="margin-top:10px">' + esc(S.draft || '') + '</textarea>';
+          '</div>';
       } else if (g.adjusting === 'priority') {
         body =
           '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
@@ -1118,6 +1115,13 @@
             '<button class="opt" data-act="guide-adjust" data-v="reminder">Reminder</button>' +
           '</div>';
       }
+      // Every question above is also answerable by voice or typing, not
+      // just by tapping one of the pills — say "personal", "yes", "high
+      // priority", "30 minutes before", whatever the question calls for,
+      // and Mimi figures out which answer that was.
+      body +=
+        '<div class="label" style="margin-top:18px;padding-left:44px;color:' + micStatusColor() + '">' + micStatusLabel('OR SAY YOUR ANSWER') + '</div>' +
+        '<textarea class="type-in" id="guide-in" rows="2" placeholder="e.g. personal, or yes that looks right" style="margin-top:8px">' + esc(S.draft || '') + '</textarea>';
     } else if (g.step === 'answer') {
       // Mimi can also just answer a question about your tasks instead of
       // adding one — same mic/text input, routed by isQuestion() rather
@@ -1145,9 +1149,9 @@
           '<button class="btn btn-outline" data-act="mic"' + (S.transcribing ? ' disabled' : '') + ' style="flex:none;width:50px;display:flex;align-items:center;justify-content:center;padding:0">' + svg(IC.mic, 18, micButtonColor()) + '</button>' +
           '<button class="btn btn-primary" data-act="guide-submit" style="flex:1">Send</button>' +
         '</div>' : '') +
-        (askingDate ? '<div style="display:flex;gap:10px">' +
+        (g.step === 'confirm' ? '<div style="display:flex;gap:10px">' +
           '<button class="btn btn-outline" data-act="mic"' + (S.transcribing ? ' disabled' : '') + ' style="flex:none;width:50px;display:flex;align-items:center;justify-content:center;padding:0">' + svg(IC.mic, 18, micButtonColor()) + '</button>' +
-          '<button class="btn btn-primary" data-act="guide-date-submit" style="flex:1">Send</button>' +
+          '<button class="btn btn-primary" data-act="guide-voice-answer" style="flex:1">Send</button>' +
         '</div>' : '') +
         (g.step === 'done' ? '<div style="display:flex;gap:10px">' +
           '<button class="btn btn-outline" data-act="guide-again" style="flex:1">Add another</button>' +
@@ -2423,30 +2427,95 @@
       if (S.settings.voiceSpoken) speak(guideSpokenText(g));
       render();
     },
-    'guide-date-submit': function () {
+    // The voice/typed answer to whatever Mimi is currently asking in the
+    // 'confirm' step — tapping a pill above is a shortcut through the same
+    // state transitions, not the only way to answer; this is the path for
+    // just saying the answer out loud instead. Each phase below mirrors
+    // exactly what its own pill buttons do, so the two never disagree.
+    'guide-voice-answer': function () {
       syncFields();
       var g = S.guide;
-      var text = (S.draft || '').trim();
-      g.dateAsked = true;
-      if (text) {
-        var t = text.toLowerCase();
+      var raw = (S.draft || '').trim();
+      if (!raw) return;
+      var t = raw.toLowerCase();
+      S.draft = '';
+      var saidYes = /^(yes|yeah|yep|yup|correct|sounds? right|that'?s right|sure|go ahead)\b/.test(t);
+      var saidNo = /no deadline|never mind|cancel|skip|none/.test(t);
+
+      var seg = g.segmentId ? segmentById(g.segmentId) : null;
+      var guess = g.segmentGuess ? segmentById(g.segmentGuess) : null;
+
+      if (!seg) {
+        var pick = (guess && saidYes) ? guess : (localMatchSegment(raw) || activeSegments().filter(function (s) { return t.indexOf(s.name.toLowerCase()) > -1; })[0]);
+        if (!pick) { toast('Didn’t catch a segment — say its name, or tap one below.'); render(); return; }
+        g.segmentId = pick.id;
+        if (S.settings.voiceSpoken) speak(guideSpokenText(g));
+        render();
+        return;
+      }
+
+      if (g.followUp) {
+        if (saidNo) { g.date = null; g.dateAsked = true; }
+        else if (g.alt && /after|other one|next one|second one/.test(t)) { g.date = g.alt; }
+        else if (saidYes) { /* keep the near guess already in g.date */ }
+        else { var w1 = localResolveDate(t, TODAY); if (w1.date) { g.date = isoOf(w1.date); g.alt = w1.alt ? isoOf(w1.alt) : null; } }
+        g.followUp = null;
+        if (S.settings.voiceSpoken) speak(guideSpokenText(g));
+        render();
+        return;
+      }
+
+      if (!g.date && !g.dateAsked) {
+        g.dateAsked = true;
         var when = localResolveDate(t, TODAY);
-        var time = localResolveTime(t);
         if (when.date) {
           g.date = isoOf(when.date);
-          g.time = time;
+          g.time = localResolveTime(t);
           g.followUp = when.ambiguous ? when.question : null;
           g.alt = when.alt ? isoOf(when.alt) : null;
         } else {
-          // Didn't recognize a date phrase — treat it the same as "no
-          // deadline" rather than looping on the same question.
           g.date = null;
         }
-      } else {
-        g.date = null;
+        if (S.settings.voiceSpoken) speak(guideSpokenText(g));
+        render();
+        return;
       }
-      S.draft = '';
-      if (S.settings.voiceSpoken) speak(guideSpokenText(g));
+
+      if (g.adjusting === 'priority') {
+        var p = HIGH_PRIORITY.test(t) || /\bhigh\b/.test(t) ? 'high' : (LOW_PRIORITY.test(t) || /\blow\b/.test(t) ? 'low' : (/\b(normal|medium|regular)\b/.test(t) ? 'normal' : null));
+        if (!p) { toast('Say high, medium, or low.'); render(); return; }
+        g.priority = p;
+        g.adjusting = null;
+        if (S.settings.voiceSpoken) speak(guideSpokenText(g));
+        render();
+        return;
+      }
+
+      if (g.adjusting === 'reminder') {
+        var r1 = /no reminder|^none$/.test(t) ? { mode: 'none' } : localReminderFrom('remind me ' + t);
+        if (!r1) { toast('Try “15 minutes before,” “at the deadline,” or “no reminder.”'); render(); return; }
+        g.reminder = r1;
+        g.adjusting = null;
+        if (S.settings.voiceSpoken) speak(guideSpokenText(g));
+        render();
+        return;
+      }
+
+      // Combined confirmation: an inline change ("make it high priority")
+      // is applied immediately; saying yes (with or without a change in
+      // the same breath) goes straight to creating the task.
+      var changed = false;
+      if (HIGH_PRIORITY.test(t)) { g.priority = 'high'; changed = true; }
+      else if (LOW_PRIORITY.test(t)) { g.priority = 'low'; changed = true; }
+      if (REMINDER_PHRASE.test(t)) {
+        var r2 = /no reminder/.test(t) ? { mode: 'none' } : localReminderFrom(t);
+        if (r2) { g.reminder = r2; changed = true; }
+      }
+      if (saidYes) { createGuideTask(); return; }
+      if (changed) { if (S.settings.voiceSpoken) speak(guideSpokenText(g)); render(); return; }
+      if (/priority/.test(t)) { g.adjusting = 'priority'; if (S.settings.voiceSpoken) speak(guideSpokenText(g)); render(); return; }
+      if (/reminder/.test(t)) { g.adjusting = 'reminder'; if (S.settings.voiceSpoken) speak(guideSpokenText(g)); render(); return; }
+      toast('Say “yes” to add it, or tell me what to change.');
       render();
     },
     'guide-adjust': function (v) {

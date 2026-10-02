@@ -446,28 +446,28 @@ const server = http.createServer(async (req, res) => {
         const buf = Buffer.from(inBody.audio, 'base64');
         if (!buf.length) return json(res, 400, { error: 'No audio received.' });
         const mime = inBody.mimeType || 'audio/webm';
-        // Gemini is preferred when both keys are set, since it's the one
-        // most recently asked for — but it's a general multimodal model
-        // doing transcription via a prompt, not a purpose-built speech
-        // model, and its documented audio inputs are WAV/MP3/AAC/OGG/FLAC,
-        // not the webm/mp4 a browser's MediaRecorder actually produces; if
-        // it rejects the format, that error comes back to the client as-is.
-        // If Gemini still fails after its own retries (real outage, not
-        // just a momentary overload) and a Whisper key also exists, fall
-        // back to it silently instead of surfacing an error to the person —
-        // two independent providers failing at once is far less likely
-        // than either one alone having a bad moment.
-        if (geminiKey) {
+        // Whisper is preferred when both keys are set: it's a purpose-built
+        // speech model (vs. Gemini's general multimodal model doing
+        // transcription via a prompt), it's been the more complete/accurate
+        // of the two in practice, and it doesn't hit the "high demand"
+        // overload retries that add latency on Gemini. If Whisper fails and
+        // a Gemini key also exists, fall back to it silently instead of
+        // surfacing an error to the person — two independent providers
+        // failing at once is far less likely than either one alone having
+        // a bad moment.
+        if (openaiKey) {
           try {
-            const text = await transcribeWithGemini(buf, mime, geminiKey);
+            const text = await transcribeWithOpenAI(buf, mime, openaiKey);
             return json(res, 200, { text });
           } catch (e) {
-            if (!openaiKey) throw e;
+            console.error('[transcribe] OpenAI failed:', e.message);
+            if (!geminiKey) throw e;
           }
         }
-        const text = await transcribeWithOpenAI(buf, mime, openaiKey);
+        const text = await transcribeWithGemini(buf, mime, geminiKey);
         return json(res, 200, { text });
       } catch (e) {
+        console.error('[transcribe] failed:', e.message);
         return json(res, 502, { error: e.message || 'Transcription failed.' });
       }
     }
@@ -484,6 +484,13 @@ const server = http.createServer(async (req, res) => {
         const audio = await synthesizeSpeech(inBody.text, ttsKey);
         return json(res, 200, { audio });
       } catch (e) {
+        // Logged server-side (visible in Render's Logs tab) because the
+        // client falls back to the browser voice silently on any failure
+        // here — a bad/misconfigured key reads as "still sounds robotic"
+        // with no visible error, so this is the only place the real reason
+        // (e.g. a 403 because the key is restricted to the Generative
+        // Language API and doesn't also allow Cloud Text-to-Speech) shows up.
+        console.error('[speak] synthesis failed:', e.message);
         return json(res, 502, { error: e.message || 'Speech synthesis failed.' });
       }
     }

@@ -980,7 +980,7 @@
   }
 
   function newGuide() {
-    return { step: 'listen', heard: '', title: '', segmentId: null, segmentGuess: null, priority: null, reminder: null, adjusting: null, date: null, time: null, dateGuess: null, followUp: null, alt: null, createdTitle: '', createdSegment: '', createdCalendarUrl: null };
+    return { step: 'listen', heard: '', title: '', segmentId: null, segmentGuess: null, priority: null, reminder: null, adjusting: null, date: null, time: null, dateGuess: null, followUp: null, alt: null, answerData: null, createdTitle: '', createdSegment: '', createdCalendarUrl: null };
   }
   // The single combined "does this sound right?" line, once segment and date
   // are both resolved — read aloud (guideSpokenText) and shown in the bubble
@@ -1100,6 +1100,17 @@
             '<button class="opt" data-act="guide-adjust" data-v="reminder">Reminder</button>' +
           '</div>';
       }
+    } else if (g.step === 'answer') {
+      // Mimi can also just answer a question about your tasks instead of
+      // adding one — same mic/text input, routed by isQuestion() rather
+      // than a separate mode you have to pick.
+      var ans = g.answerData || { lead: '', ids: [] };
+      body =
+        '<div class="guide-you"><div class="guide-you-bubble">“' + esc(g.heard) + '”</div></div>' +
+        '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
+          '<div class="guide-bubble">' + esc(ans.lead) + '</div>' +
+        '</div>' +
+        (ans.ids && ans.ids.length ? '<div style="padding-left:44px;margin-top:8px">' + ans.ids.map(function (id) { var t = taskById(id); return t ? taskRow(t) : ''; }).join('') + '</div>' : '');
     } else if (g.step === 'done') {
       body =
         '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
@@ -1118,6 +1129,10 @@
         '</div>' : '') +
         (g.step === 'done' ? '<div style="display:flex;gap:10px">' +
           '<button class="btn btn-outline" data-act="guide-again" style="flex:1">Add another</button>' +
+          '<button class="btn btn-primary" data-act="go" data-v="dashboard" style="flex:1">Done</button>' +
+        '</div>' : '') +
+        (g.step === 'answer' ? '<div style="display:flex;gap:10px">' +
+          '<button class="btn btn-outline" data-act="guide-again" style="flex:1">Ask or add another</button>' +
           '<button class="btn btn-primary" data-act="go" data-v="dashboard" style="flex:1">Done</button>' +
         '</div>' : '') +
       '</div>' + toastHtml();
@@ -2301,6 +2316,26 @@
       if (!text) return;
       var g = S.guide;
       g.heard = text;
+      S.draft = '';
+      // Mimi handles questions ("what's overdue?") the same way the "+"
+      // quick-add does, so you don't need to remember a separate place to
+      // ask vs. add — one mic, routed by what you actually said.
+      if (isQuestion(text)) {
+        var afterAnswer = function (a) {
+          g.answerData = a;
+          g.step = 'answer';
+          if (S.settings.voiceSpoken) speak(a.lead);
+          render();
+        };
+        if (API) {
+          call('POST', '/api/assistant/query', { text: text, today: isoOf(TODAY) })
+            .then(afterAnswer)
+            .catch(function () { afterAnswer(localAnswer(text)); });
+        } else {
+          afterAnswer(localAnswer(text));
+        }
+        return;
+      }
       // A confident segment guess and an unambiguous date mean nothing left
       // to ask — priority/reminder are pre-filled (from the phrase, or the
       // account default) rather than asked, so the very next thing shown is
@@ -2317,7 +2352,6 @@
         g.reminder = p.reminder || effectiveReminder(null);
         g.adjusting = null;
         g.step = 'confirm';
-        S.draft = '';
         if (S.settings.voiceSpoken) speak(guideSpokenText(g));
         render();
       };

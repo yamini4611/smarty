@@ -980,7 +980,7 @@
   }
 
   function newGuide() {
-    return { step: 'listen', heard: '', lastHeard: null, title: '', segmentId: null, segmentGuess: null, priority: null, reminder: null, adjusting: null, date: null, time: null, dateAsked: false, dateGuess: null, followUp: null, alt: null, answerData: null, createdTitle: '', createdSegment: '', createdCalendarUrl: null };
+    return { step: 'listen', heard: '', lastHeard: null, title: '', segmentId: null, segmentGuess: null, priority: null, reminder: null, adjusting: null, date: null, time: null, dateAsked: false, dateGuess: null, followUp: null, alt: null, answerData: null, createdTitle: '', createdSegment: '', createdSegmentName: '', createdCalendarUrl: null };
   }
   // The single combined "does this sound right?" line, once segment and date
   // are both resolved — read aloud (guideSpokenText) and shown in the bubble
@@ -1142,6 +1142,16 @@
             (g.createdCalendarUrl ? '<br><a href="' + esc(g.createdCalendarUrl) + '" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;display:inline-block;margin-top:8px">Add to Google Calendar →</a>' : '') +
           '</div>' +
         '</div>';
+    } else if (g.step === 'segment-created') {
+      // "Make a new segment called X" is a different kind of request than
+      // adding a task — recognized up front in guide-submit, before the
+      // task parser ever sees it, rather than force-fitting it through
+      // task-parsing and producing nonsense.
+      body =
+        '<div class="guide-you"><div class="guide-you-bubble">“' + esc(g.heard) + '”</div></div>' +
+        '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
+          '<div class="guide-bubble">Created a new segment: <b>' + esc(g.createdSegmentName) + '</b>. Want to add a task to it now, or anything else' + greetName() + '?</div>' +
+        '</div>';
     }
 
     return backHeader('Mimi', 'go', 'dashboard') +
@@ -1155,7 +1165,7 @@
           '<button class="btn btn-outline" data-act="mic"' + (S.transcribing ? ' disabled' : '') + ' style="flex:none;width:50px;display:flex;align-items:center;justify-content:center;padding:0">' + svg(IC.mic, 18, micButtonColor()) + '</button>' +
           '<button class="btn btn-primary" data-act="guide-voice-answer" style="flex:1">Send</button>' +
         '</div>' : '') +
-        (g.step === 'done' ? '<div style="display:flex;gap:10px">' +
+        ((g.step === 'done' || g.step === 'segment-created') ? '<div style="display:flex;gap:10px">' +
           '<button class="btn btn-outline" data-act="guide-again" style="flex:1">Add another</button>' +
           '<button class="btn btn-primary" data-act="go" data-v="dashboard" style="flex:1">Done</button>' +
         '</div>' : '') +
@@ -2359,6 +2369,31 @@
       var g = S.guide;
       g.heard = text;
       S.draft = '';
+      // "Make/create a new segment called X" is a setup request, not a
+      // task to parse — checked first (before isQuestion, since this
+      // phrasing often ends in "?" too) so it doesn't get force-fit
+      // through the task parser and come out as nonsense.
+      var segCreateMatch = text.match(/\b(?:make|create|add|start)\b.*?\bsegment\b.*?\b(?:called|named|for)\b\s+(.+?)[\s.?!]*$/i);
+      if (segCreateMatch) {
+        var segName = titleCase(segCreateMatch[1].trim());
+        if (!segName) { toast('What should the new segment be called?'); render(); return; }
+        var afterSegCreate = function (s) {
+          g.createdSegmentName = s.name;
+          g.step = 'segment-created';
+          if (S.settings.voiceSpoken) speak('Created a new segment: ' + s.name + '. Want to add a task to it now, or anything else' + greetName() + '?');
+          render();
+        };
+        var newSegColor = SEG_PALETTE[S.segments.length % SEG_PALETTE.length];
+        var newSegIcon = inferIcon(segName);
+        if (API) {
+          call('POST', '/api/segments', { name: segName, color: newSegColor, icon: newSegIcon }).then(function (s) { S.segments.push(s); afterSegCreate(s); });
+        } else {
+          var newSeg = { id: newId('sg'), user_id: 'u1', name: segName, icon: newSegIcon, color: newSegColor, sort_order: S.segments.length, status: 'active', archived_at: null, created_at: new Date().toISOString() };
+          S.segments.push(newSeg);
+          afterSegCreate(newSeg);
+        }
+        return;
+      }
       // Mimi handles questions ("what's overdue?") the same way the "+"
       // quick-add does, so you don't need to remember a separate place to
       // ask vs. add — one mic, routed by what you actually said.

@@ -980,7 +980,7 @@
   }
 
   function newGuide() {
-    return { step: 'listen', heard: '', title: '', segmentId: null, segmentGuess: null, priority: null, reminder: null, adjusting: null, date: null, time: null, dateAsked: false, dateGuess: null, followUp: null, alt: null, answerData: null, createdTitle: '', createdSegment: '', createdCalendarUrl: null };
+    return { step: 'listen', heard: '', lastHeard: null, title: '', segmentId: null, segmentGuess: null, priority: null, reminder: null, adjusting: null, date: null, time: null, dateAsked: false, dateGuess: null, followUp: null, alt: null, answerData: null, createdTitle: '', createdSegment: '', createdCalendarUrl: null };
   }
   // The single combined "does this sound right?" line, once segment and date
   // are both resolved — read aloud (guideSpokenText) and shown in the bubble
@@ -1043,7 +1043,6 @@
         // nothing else shown yet. Picking one re-renders straight into
         // whichever of the branches below now applies.
         body =
-          '<div class="guide-you"><div class="guide-you-bubble">“' + esc(g.heard) + '”</div></div>' +
           '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
             '<div class="guide-bubble">' + (guess
               ? 'Got it — “' + esc(g.title) + '.” I think that’s ' + dot(guess.color, 8) + ' <b>' + esc(guess.name) + '</b> — is that right' + greetName() + '?'
@@ -1115,11 +1114,14 @@
             '<button class="opt" data-act="guide-adjust" data-v="reminder">Reminder</button>' +
           '</div>';
       }
-      // Every question above is also answerable by voice or typing, not
-      // just by tapping one of the pills — say "personal", "yes", "high
-      // priority", "30 minutes before", whatever the question calls for,
-      // and Mimi figures out which answer that was.
-      body +=
+      // What was most recently heard — the original phrase, or your latest
+      // spoken reply, whichever is newer — stays visible right above
+      // Mimi's current question. That's the one place to actually catch a
+      // mis-transcription before it's acted on, rather than finding out
+      // three questions later that something got misheard.
+      body =
+        '<div class="guide-you"><div class="guide-you-bubble">“' + esc(g.lastHeard || g.heard) + '”</div></div>' +
+        body +
         '<div class="label" style="margin-top:18px;padding-left:44px;color:' + micStatusColor() + '">' + micStatusLabel('OR SAY YOUR ANSWER') + '</div>' +
         '<textarea class="type-in" id="guide-in" rows="2" placeholder="e.g. personal, or yes that looks right" style="margin-top:8px">' + esc(S.draft || '') + '</textarea>';
     } else if (g.step === 'answer') {
@@ -2439,6 +2441,7 @@
       if (!raw) return;
       var t = raw.toLowerCase();
       S.draft = '';
+      g.lastHeard = raw;
       var saidYes = /^(yes|yeah|yep|yup|correct|sounds? right|that'?s right|sure|go ahead)\b/.test(t);
       var saidNo = /no deadline|never mind|cancel|skip|none/.test(t);
 

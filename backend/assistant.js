@@ -14,7 +14,7 @@ const { taskState, daysUntil } = require('./status.js');
 
 const WD = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 const REMINDER_PHRASE = /\bremind me\b|\breminder\b/i;
-const HIGH_PRIORITY = /\burgent\b|\basap\b|\bimmediately\b|\bcritical\b/i;
+const HIGH_PRIORITY = /\burgent\b|\basap\b|\bimmediately\b|\bcritical\b|\bhigh priority\b/i;
 const LOW_PRIORITY = /\bwhenever\b|\bno rush\b|\blow priority\b/i;
 
 const iso = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -81,8 +81,20 @@ function resolveTime(t) {
   return String(h).padStart(2, '0') + ':' + String(min).padStart(2, '0');
 }
 
+// Pulls a specific reminder timing out of the phrase itself when one's
+// there ("remind me 30 minutes before", "remind me at the deadline"),
+// rather than always falling back to the generic day-before default —
+// so a spoken reminder is understood and stored as said, not just
+// detected as "wants *a* reminder" and left for a manual pick.
 function reminderFrom(clause) {
-  if (!REMINDER_PHRASE.test(clause)) return null;
+  const t = clause.toLowerCase();
+  if (!REMINDER_PHRASE.test(t)) return null;
+  if (/\b15\b[^.]{0,12}\bmin|fifteen minutes?\b/.test(t)) return { mode: 'before_minutes', offsetMinutes: 15 };
+  if (/\b30\b[^.]{0,12}\bmin|thirty minutes?\b|half an? hour\b/.test(t)) return { mode: 'before_minutes', offsetMinutes: 30 };
+  if (/\b(?:60|one|1)\s*(?:min(?:ute)?s?\b|hour)|an hour before\b/.test(t)) return { mode: 'before_minutes', offsetMinutes: 60 };
+  if (/at the deadline\b|when it'?s due\b|right (?:at|when)\b/.test(t)) return { mode: 'at_deadline' };
+  if (/every week\b|weekly\b|each week\b/.test(t)) return { mode: 'repeat', repeatRule: 'weekly' };
+  if (/day before\b|24 hours?\b/.test(t)) return { mode: 'before', offsetDays: 1, atHour: 9 };
   return { mode: 'before', offsetDays: 1, atHour: 9, needsConfirm: true };
 }
 
@@ -111,14 +123,14 @@ function cleanTitle(raw) {
   return raw.trim()
     .replace(/^(i need to|i have to|i must|i should|please|can you|remind me to|remember to|don'?t forget to|i want to)\s+/i, '')
     .replace(/^for (?:my |our |the )?[^,]{1,40},\s*/i, '')
-    .replace(/,?\s*(?:and\s+)?remind me (?:the day before|of it|about it)\b.*/i, '')
+    .replace(/,?\s*(?:and\s+)?remind me\b.*/i, '')
     .replace(/\b(?:on |by |every )?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi, '')
     .replace(/\b(tomorrow|today|tonight|next week|this month|end of the month)\b/gi, '')
     .replace(/\bin \d+ days?\b/gi, '')
     .replace(/\b(?:on |by |before )?the \d{1,2}(?:st|nd|rd|th)\b/gi, '')
     .replace(/\b(?:at\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/gi, '')
     .replace(/\b\d{1,2}:\d{2}\s*(?:am|pm)?\b/gi, '')
-    .replace(/,?\s*\b(?:urgent|asap|immediately|critical|whenever|no rush|low priority)\b\.?/gi, '')
+    .replace(/,?\s*\b(?:urgent|asap|immediately|critical|whenever|no rush|low priority|high priority)\b\.?/gi, '')
     .replace(/\s{2,}/g, ' ').replace(/\s+([,.])/g, '$1').replace(/[,\s]+$/, '').trim();
 }
 
@@ -188,6 +200,17 @@ function answer(text, ctx) {
     return {
       title: 'OVERDUE',
       lead: rows.length ? cap1(count(rows.length, 'task is', 'tasks are')) + ' overdue.' : 'Nothing is overdue.',
+      ids: rows.map((tk) => tk.id)
+    };
+  }
+
+  // Checked before "due this week" below, since both phrases can contain
+  // "due" and "today" needs to win over the broader week-range match.
+  if (/due today|today'?s tasks|what'?s due today|due by today/.test(t)) {
+    const rows = open.filter((tk) => tk.due_at && daysUntil(tk.due_at, now) === 0);
+    return {
+      title: 'DUE TODAY',
+      lead: rows.length ? cap1(count(rows.length, 'task is', 'tasks are')) + ' due today.' : 'Nothing is due today.',
       ids: rows.map((tk) => tk.id)
     };
   }

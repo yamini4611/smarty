@@ -980,7 +980,7 @@
   }
 
   function newGuide() {
-    return { step: 'listen', heard: '', title: '', segmentId: null, segmentGuess: null, priority: null, reminder: null, adjusting: null, date: null, time: null, dateGuess: null, followUp: null, alt: null, answerData: null, createdTitle: '', createdSegment: '', createdCalendarUrl: null };
+    return { step: 'listen', heard: '', title: '', segmentId: null, segmentGuess: null, priority: null, reminder: null, adjusting: null, date: null, time: null, dateAsked: false, dateGuess: null, followUp: null, alt: null, answerData: null, createdTitle: '', createdSegment: '', createdCalendarUrl: null };
   }
   // The single combined "does this sound right?" line, once segment and date
   // are both resolved — read aloud (guideSpokenText) and shown in the bubble
@@ -1011,6 +1011,7 @@
         : 'Got it — ' + g.title + '. Which segment should that go under' + greetName() + '?';
     }
     if (g.followUp) return 'One more thing — ' + g.followUp;
+    if (!g.date && !g.dateAsked) return 'When should “' + g.title + '” be done by' + greetName() + '? Say a day and time, or tell me there’s no deadline.';
     if (g.adjusting === 'priority') return 'How important is this' + greetName() + ' — high, medium, or low?';
     if (g.adjusting === 'reminder') return 'Want a reminder for this' + greetName() + '?';
     return guideSummaryText(g, seg);
@@ -1023,6 +1024,7 @@
   SCREENS['voice-guide'] = function () {
     var g = S.guide || (S.guide = newGuide());
     var body = '';
+    var askingDate = false;
 
     if (g.step === 'listen') {
       body =
@@ -1067,6 +1069,22 @@
             (g.alt ? '<button class="opt" data-act="guide-confirm-date" data-v="alt">The one after</button>' : '') +
             '<button class="opt" data-act="guide-confirm-date" data-v="none">Never mind, no deadline</button>' +
           '</div>';
+      } else if (!g.date && !g.dateAsked) {
+        // Nothing in the phrase named a date — ask instead of silently
+        // defaulting to "no deadline" the way a missing priority or
+        // reminder can; quick picks cover the common cases, but you can
+        // also just say or type a day ("next Friday at 3pm").
+        askingDate = true;
+        body =
+          '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
+            '<div class="guide-bubble">When should “' + esc(g.title) + '” be done by' + greetName() + '? Say a day and time, or tell me there’s no deadline.</div>' +
+          '</div>' +
+          '<div class="pillrow" style="margin-top:14px;padding-left:44px">' +
+            '<button class="opt" data-act="guide-quick-date" data-v="today">Today</button>' +
+            '<button class="opt" data-act="guide-quick-date" data-v="tomorrow">Tomorrow</button>' +
+            '<button class="opt" data-act="guide-quick-date" data-v="none">No deadline</button>' +
+          '</div>' +
+          '<textarea class="type-in" id="guide-in" rows="2" placeholder="e.g. next Friday at 3pm" style="margin-top:10px">' + esc(S.draft || '') + '</textarea>';
       } else if (g.adjusting === 'priority') {
         body =
           '<div class="guide-msg"><div class="guide-avatar">' + mimiTurtle(24) + '</div>' +
@@ -1126,6 +1144,10 @@
         (g.step === 'listen' ? '<div style="display:flex;gap:10px">' +
           '<button class="btn btn-outline" data-act="mic"' + (S.transcribing ? ' disabled' : '') + ' style="flex:none;width:50px;display:flex;align-items:center;justify-content:center;padding:0">' + svg(IC.mic, 18, micButtonColor()) + '</button>' +
           '<button class="btn btn-primary" data-act="guide-submit" style="flex:1">Send</button>' +
+        '</div>' : '') +
+        (askingDate ? '<div style="display:flex;gap:10px">' +
+          '<button class="btn btn-outline" data-act="mic"' + (S.transcribing ? ' disabled' : '') + ' style="flex:none;width:50px;display:flex;align-items:center;justify-content:center;padding:0">' + svg(IC.mic, 18, micButtonColor()) + '</button>' +
+          '<button class="btn btn-primary" data-act="guide-date-submit" style="flex:1">Send</button>' +
         '</div>' : '') +
         (g.step === 'done' ? '<div style="display:flex;gap:10px">' +
           '<button class="btn btn-outline" data-act="guide-again" style="flex:1">Add another</button>' +
@@ -1649,7 +1671,7 @@
   // without a server behind it.
   var WD = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
   var REMINDER_PHRASE = /\bremind me\b|\breminder\b/i;
-  var HIGH_PRIORITY = /\burgent\b|\basap\b|\bimmediately\b|\bcritical\b/i;
+  var HIGH_PRIORITY = /\burgent\b|\basap\b|\bimmediately\b|\bcritical\b|\bhigh priority\b/i;
   var LOW_PRIORITY = /\bwhenever\b|\bno rush\b|\blow priority\b/i;
 
   function localResolveDate(t, today) {
@@ -1702,8 +1724,18 @@
     if (ap === 'am' && h === 12) h = 0;
     return String(h).padStart(2, '0') + ':' + String(min).padStart(2, '0');
   }
+  // Mirrors backend/assistant.js's reminderFrom() — pulls a specific
+  // timing out of the phrase ("remind me 30 minutes before") instead of
+  // always falling back to the generic day-before default.
   function localReminderFrom(clause) {
-    if (!REMINDER_PHRASE.test(clause)) return null;
+    var t = clause.toLowerCase();
+    if (!REMINDER_PHRASE.test(t)) return null;
+    if (/\b15\b[^.]{0,12}\bmin|fifteen minutes?\b/.test(t)) return { mode: 'before_minutes', offsetMinutes: 15 };
+    if (/\b30\b[^.]{0,12}\bmin|thirty minutes?\b|half an? hour\b/.test(t)) return { mode: 'before_minutes', offsetMinutes: 30 };
+    if (/\b(?:60|one|1)\s*(?:min(?:ute)?s?\b|hour)|an hour before\b/.test(t)) return { mode: 'before_minutes', offsetMinutes: 60 };
+    if (/at the deadline\b|when it'?s due\b|right (?:at|when)\b/.test(t)) return { mode: 'at_deadline' };
+    if (/every week\b|weekly\b|each week\b/.test(t)) return { mode: 'repeat', repeatRule: 'weekly' };
+    if (/day before\b|24 hours?\b/.test(t)) return { mode: 'before', offsetDays: 1, atHour: 9 };
     return { mode: 'before', offsetDays: 1, atHour: 9, needsConfirm: true };
   }
   function localSplitClauses(text) {
@@ -1719,14 +1751,14 @@
     return raw.trim()
       .replace(/^(i need to|i have to|i must|i should|please|can you|remind me to|remember to|don'?t forget to|i want to)\s+/i, '')
       .replace(/^for (?:my |our |the )?[^,]{1,40},\s*/i, '')
-      .replace(/,?\s*(?:and\s+)?remind me (?:the day before|of it|about it)\b.*/i, '')
+      .replace(/,?\s*(?:and\s+)?remind me\b.*/i, '')
       .replace(/\b(?:on |by |every )?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi, '')
       .replace(/\b(tomorrow|today|tonight|next week|this month|end of the month)\b/gi, '')
       .replace(/\bin \d+ days?\b/gi, '')
       .replace(/\b(?:on |by |before )?the \d{1,2}(?:st|nd|rd|th)\b/gi, '')
       .replace(/\b(?:at\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/gi, '')
       .replace(/\b\d{1,2}:\d{2}\s*(?:am|pm)?\b/gi, '')
-      .replace(/,?\s*\b(?:urgent|asap|immediately|critical|whenever|no rush|low priority)\b\.?/gi, '')
+      .replace(/,?\s*\b(?:urgent|asap|immediately|critical|whenever|no rush|low priority|high priority)\b\.?/gi, '')
       .replace(/\s{2,}/g, ' ').replace(/\s+([,.])/g, '$1').replace(/[,\s]+$/, '').trim();
   }
   function localMatchSegment(clause) {
@@ -1776,6 +1808,10 @@
     if (/what is overdue|what'?s overdue|overdue\b/.test(t)) {
       var late = open.filter(function (tk) { return taskState(tk) === 'overdue'; });
       return { title: 'OVERDUE', lead: late.length ? titleCase(count(late.length, 'task is', 'tasks are')) + ' overdue.' : 'Nothing is overdue.', ids: late.map(function (tk) { return tk.id; }) };
+    }
+    if (/due today|today'?s tasks|what'?s due today|due by today/.test(t)) {
+      var dueToday = open.filter(function (tk) { return tk.due_at && daysFrom(tk.due_at) === 0; });
+      return { title: 'DUE TODAY', lead: dueToday.length ? titleCase(count(dueToday.length, 'task is', 'tasks are')) + ' due today.' : 'Nothing is due today.', ids: dueToday.map(function (tk) { return tk.id; }) };
     }
     if (/due this week|this week|next few days|approaching/.test(t)) {
       var soon = open.filter(function (tk) { return taskState(tk) === 'approaching'; });
@@ -2372,8 +2408,44 @@
     'guide-confirm-date': function (v) {
       var g = S.guide;
       if (v === 'alt' && g.alt) g.date = g.alt;
-      if (v === 'none') g.date = null;
+      if (v === 'none') { g.date = null; g.dateAsked = true; }
       g.followUp = null;
+      if (S.settings.voiceSpoken) speak(guideSpokenText(g));
+      render();
+    },
+    'guide-quick-date': function (v) {
+      var g = S.guide;
+      g.dateAsked = true;
+      if (v === 'today') g.date = isoOf(TODAY);
+      else if (v === 'tomorrow') { var d = new Date(TODAY); d.setDate(d.getDate() + 1); g.date = isoOf(d); }
+      else g.date = null;
+      S.draft = '';
+      if (S.settings.voiceSpoken) speak(guideSpokenText(g));
+      render();
+    },
+    'guide-date-submit': function () {
+      syncFields();
+      var g = S.guide;
+      var text = (S.draft || '').trim();
+      g.dateAsked = true;
+      if (text) {
+        var t = text.toLowerCase();
+        var when = localResolveDate(t, TODAY);
+        var time = localResolveTime(t);
+        if (when.date) {
+          g.date = isoOf(when.date);
+          g.time = time;
+          g.followUp = when.ambiguous ? when.question : null;
+          g.alt = when.alt ? isoOf(when.alt) : null;
+        } else {
+          // Didn't recognize a date phrase — treat it the same as "no
+          // deadline" rather than looping on the same question.
+          g.date = null;
+        }
+      } else {
+        g.date = null;
+      }
+      S.draft = '';
       if (S.settings.voiceSpoken) speak(guideSpokenText(g));
       render();
     },

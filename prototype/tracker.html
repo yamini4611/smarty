@@ -830,18 +830,19 @@
   };
 
   SCREENS['optional-calendar'] = function () {
+    // No account linking, no OAuth, nothing to connect — a dated task gets
+    // a one-tap "Add to Google Calendar" link (opens Google's own quick-add
+    // page, pre-filled) and a downloadable .ics for Apple Calendar, both
+    // available any time from the task itself. This screen just says so
+    // up front, instead of a "Connect" step that didn't actually do
+    // anything behind the scenes.
     return backHeader('Calendar', 'go', 'welcome') +
       '<div class="scroll pad-bottom">' +
-        '<h1 class="display" style="font-size:22px;margin-top:16px">Want to connect ' + calendarLabel() + '?</h1>' +
-        '<p class="lede" style="margin-top:10px">Optional, and reversible any time from Settings. When it’s connected, you can choose to add a dated task to it — the tracker stays the source of truth, and nothing imports the other way.</p>' +
-        '<div class="box" style="margin-top:18px">' +
-          '<div class="label" style="margin-bottom:8px">WHAT WE’D USE IT FOR</div>' +
-          '<p class="lede" style="font-size:13px">Only to create a single event when you explicitly choose “Add to calendar” for a task. Nothing is read from your calendar, and nothing is added without you asking.</p>' +
-        '</div>' +
+        '<h1 class="display" style="font-size:22px;margin-top:16px">Getting things onto ' + calendarLabel() + '</h1>' +
+        '<p class="lede" style="margin-top:10px">No account to link — any dated task gets a one-tap “Add to calendar” link right on the task itself, whenever you want it there. The tracker stays the source of truth; nothing is read from your calendar, and nothing goes on it without you tapping that link yourself.</p>' +
       '</div>' +
       '<div class="foot">' +
-        '<button class="btn btn-primary" data-act="connect-calendar">Connect ' + calendarLabel() + '</button>' +
-        '<button class="btn btn-quiet" data-act="go" data-v="about-you" style="text-align:center">Skip for now</button>' +
+        '<button class="btn btn-primary" data-act="go" data-v="about-you">Got it</button>' +
       '</div>';
   };
 
@@ -1662,9 +1663,12 @@
         '</div>' +
 
         sectionHead('CALENDAR') +
+        // There's no account to connect — open any dated task and tap
+        // "Add to calendar" there any time you want it on Google or Apple
+        // Calendar. A row here used to claim a "Connect" step did
+        // something; it didn't, so it's gone rather than left lying.
         '<div class="check-row">' +
-          '<div style="flex:1"><div class="task-title">' + calendarLabel() + '</div><div class="task-meta" style="margin-top:2px">' + (S.integration.status === 'connected' ? 'Connected — one-way, tracker to calendar' : 'Not connected') + '</div></div>' +
-          '<button class="btn btn-outline" data-act="toggle-calendar" style="width:auto;padding:7px 13px;font-size:12px">' + (S.integration.status === 'connected' ? 'Disconnect' : 'Connect') + '</button>' +
+          '<div style="flex:1"><div class="task-title">' + calendarLabel() + '</div><div class="task-meta" style="margin-top:2px">No account needed — add any dated task from the task screen, any time</div></div>' +
         '</div>' +
 
         sectionHead('YOUR DATA') +
@@ -1900,11 +1904,6 @@
       var proceed = function () { go('optional-calendar'); };
       if (API) call('POST', '/api/auth/sign-in', {}).then(loadFromApi).then(proceed).catch(proceed);
       else proceed();
-    },
-    'connect-calendar': function () {
-      var after = function () { toast('Calendar connected.'); go('about-you'); };
-      if (API) call('PUT', '/api/settings/calendar', { connect: true }).then(function (ig) { S.integration = ig; }).then(after);
-      else { S.integration.status = 'connected'; after(); }
     },
     'set-age': function (v) { S.ageRange = v; closeSheet(); render(); },
     'toggle-stage': function (v) { var i = S.lifeStages.indexOf(v); if (i > -1) S.lifeStages.splice(i, 1); else S.lifeStages.push(v); render(); },
@@ -2261,12 +2260,6 @@
       S.settings.privateMode = !S.settings.privateMode;
       saveLocal(); render();
       if (API) call('PUT', '/api/settings/voice', { privateMode: S.settings.privateMode });
-    },
-    'toggle-calendar': function () {
-      var connect = S.integration.status !== 'connected';
-      var after = function () { toast(connect ? 'Connected — dated tasks can now export.' : 'Disconnected.'); saveLocal(); render(); };
-      if (API) call('PUT', '/api/settings/calendar', { connect: connect }).then(function (ig) { S.integration = ig; }).then(after);
-      else { S.integration.status = connect ? 'connected' : 'disconnected'; after(); }
     },
     'export-data': function () { openSheet('export-data'); },
     'sign-out': function () {
